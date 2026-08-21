@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+.venv-1/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+
+# Pytest
+.pytest_cache/
+
+# Mypy
+.mypy_cache/
+
+# Logs
+logs/
+
+# Sessions
+sessions/
+
+# Performance data
+performance/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+playwright-report/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Prediction history (generated at runtime)
+prediction_history/
