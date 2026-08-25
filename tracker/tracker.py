@@ -55,7 +55,7 @@ class Tracker:
             except RecoverableError:
                 Logger.warning(f"Reconnect failed. Retry in {delay}s")
                 sleep(delay)
-                delay = min(delay * 2, 30)
+                delay = min(delay * 2, 50)
 
     # --------------------------------------------------
 

@@ -23,6 +23,7 @@ class SessionManager:
         self.running = False
         self.start_draw_id: str | None = None
         self.statistics = Statistics()
+        self._range_trend_history: list[tuple[int, int, int]] = []
 
     # --------------------------------------------------
     # Session boundary helpers
@@ -92,6 +93,7 @@ class SessionManager:
         self.session_name = f"draw-{start_draw_id}"
         self.start_draw_id = start_draw_id
         self.results = []
+        self._range_trend_history = []
         self.running = True
 
         end_draw_id = str(int(start_draw_id) + SESSION_DRAW_COUNT - 1)
@@ -127,6 +129,7 @@ class SessionManager:
         self.results.append((draw_id, result))
         self.storage.append_result(draw_id, result)
         self._print_live_gap(result)
+        self._print_range_trend()
 
     # --------------------------------------------------
 
@@ -145,13 +148,85 @@ class SessionManager:
         )
 
     def _print_live_gap(self, number: int) -> None:
-        current = self.live_gap(number)
-        last = self.live_last_gap(number)
-        last_text = "N/A" if last is None else str(last)
-        print(
-            f"Live gap | Number {number:>2} | "
-            f"Current: {current} | Last: {last_text}"
+        """Print gap history only when the number repeats in this session."""
+        numbers = [value for _, value in self.results]
+        positions = [
+            index
+            for index, value in enumerate(numbers)
+            if value == number
+        ]
+
+        if len(positions) < 2:
+            return
+
+        gaps = [
+            positions[index] - positions[index - 1] - 1
+            for index in range(1, len(positions))
+        ]
+        gap_text = " | ".join(
+            f"{ordinal}{suffix} gap: {gap}"
+            for ordinal, suffix, gap in zip(
+                range(1, len(gaps) + 1),
+                ["st", "nd", "rd"],
+                gaps,
+            )
         )
+
+        # For repeats beyond the first three, keep standard ordinal labels.
+        if len(gaps) > 3:
+            gap_text = " | ".join(
+                f"{self._ordinal(index)} gap: {gap}"
+                for index, gap in enumerate(gaps, start=1)
+            )
+
+        print(f"Live gap | Number {number:>2} | {gap_text}")
+
+    @staticmethod
+    def _ordinal(number: int) -> str:
+        """Return a compact ordinal label such as '1st' or '22nd'."""
+        if 10 <= number % 100 <= 20:
+            suffix = "th"
+        else:
+            suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+        return f"{number}{suffix}"
+
+    def _print_range_trend(self) -> None:
+        counts = {
+            "1-6": 0,
+            "7-12": 0,
+            "13-19": 0,
+        }
+
+        for _, value in self.results:
+            if 1 <= value <= 6:
+                counts["1-6"] += 1
+            elif 7 <= value <= 12:
+                counts["7-12"] += 1
+            elif 13 <= value <= 19:
+                counts["13-19"] += 1
+
+        self._range_trend_history.append(
+            (counts["1-6"], counts["7-12"], counts["13-19"])
+        )
+
+        # Keep the graph compact while retaining recent movement.
+        history = self._range_trend_history[-9:]
+        maximum = max(max(snapshot) for snapshot in history)
+        levels = "▁▂▃▄▅▆▇█"
+
+        def sparkline(index: int) -> str:
+            values = [snapshot[index] for snapshot in history]
+            if maximum == 0:
+                return levels[0] * len(values)
+            return "".join(
+                levels[min(len(levels) - 1, round(value / maximum * (len(levels) - 1)))]
+                for value in values
+            )
+
+        print("RANGE TREND")
+        print(f"1-6    {sparkline(0):<9}     COUNT: {counts['1-6']:02d}")
+        print(f"7-12   {sparkline(1):<9}     COUNT: {counts['7-12']:02d}")
+        print(f"13-19  {sparkline(2):<9}     COUNT: {counts['13-19']:02d}")
 
     def session_expired(self) -> bool:
         """Backward-compatible alias for the draw-based completion check."""
