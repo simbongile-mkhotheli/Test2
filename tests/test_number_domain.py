@@ -79,10 +79,16 @@ def test_storage_rejects_invalid_historical_result(tmp_path, monkeypatch):
         Storage().read_results()
 
 
-def test_session_manager_rejects_invalid_result_before_persisting():
+def test_session_manager_rejects_invalid_result_before_persisting(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "storage.storage.ACTIVE_SESSION_FILE",
+        tmp_path / ".active-session.json",
+    )
     manager = SessionManager()
     manager.start("12608180151")
-    manager.storage.append_result = lambda *_: pytest.fail("invalid result was persisted")
+    manager.storage.checkpoint_session = lambda *_: pytest.fail(
+        "invalid result was persisted"
+    )
 
     with pytest.raises(ValueError, match="0 to 18"):
         manager.add_result("12608180151", 19)

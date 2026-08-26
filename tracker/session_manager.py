@@ -1,62 +1,84 @@
-"""Draw-ID-based 30-draw session manager.
+"""Coordinate session state, persistence, analytics, and presentation."""
 
-A session always starts on a draw ID ending in ``1`` and contains exactly
-30 consecutive draws, ending on an ID whose final digit is ``0``.
-"""
-
-from time import sleep
-
-from analytics.analyzers.gaps import GapAnalyzer
-from analytics.reports.session import SessionReport
 from analytics.statistics import Statistics
-from config import LINE, SESSION_DRAW_COUNT
-from models.number_domain import NUMBER_BANDS, number_band, validate_number
+from config import SESSION_DRAW_COUNT
 from storage.storage import Storage
+from tracker.session_presenter import SessionPresenter
+from tracker.session_state import SessionState
 
 
 class SessionManager:
-    """Own the session state machine and persist captured draws."""
+    """Application coordinator for one draw-ID-based tracking session."""
 
     def __init__(self):
         self.storage = Storage()
-        self.session_name = ""
-        self.results: list[tuple[str, int]] = []
-        self.running = False
-        self.start_draw_id: str | None = None
         self.statistics = Statistics()
-        self._range_trend_history: list[tuple[int, int, int]] = []
+        self.state = SessionState(SESSION_DRAW_COUNT)
+        self.presenter = SessionPresenter()
+        self._restore_active_session()
 
-    # --------------------------------------------------
-    # Session boundary helpers
-    # --------------------------------------------------
+    # Compatibility properties retained for the tracker and existing callers.
+    @property
+    def session_name(self) -> str:
+        return self.state.name
+
+    @session_name.setter
+    def session_name(self, value: str) -> None:
+        self.state.name = value
+
+    @property
+    def start_draw_id(self) -> str | None:
+        return self.state.start_draw_id
+
+    @start_draw_id.setter
+    def start_draw_id(self, value: str | None) -> None:
+        self.state.start_draw_id = value
+
+    @property
+    def results(self) -> list[tuple[str, int]]:
+        return self.state.results
+
+    @results.setter
+    def results(self, value: list[tuple[str, int]]) -> None:
+        self.state.results = value
+
+    @property
+    def running(self) -> bool:
+        return self.state.running
+
+    @running.setter
+    def running(self, value: bool) -> None:
+        self.state.running = value
+
+    def _restore_active_session(self) -> None:
+        """Restore an interrupted session, or finalize one already complete."""
+        checkpoint = self.storage.load_active_session()
+        if checkpoint is None:
+            return
+
+        self.state.restore(
+            checkpoint.name,
+            checkpoint.start_draw_id,
+            checkpoint.results,
+        )
+        self.presenter.restore(self.results)
+        if self.is_complete():
+            self.finish()
 
     @staticmethod
     def draw_position(draw_id: str) -> int:
-        """Return the final digit of a numeric draw ID."""
-        if not draw_id or not draw_id.isdigit():
-            raise ValueError(f"Invalid draw ID: {draw_id!r}")
-        return int(draw_id[-1])
+        return SessionState.draw_position(draw_id)
 
-    @classmethod
-    def is_session_start_draw(cls, draw_id: str) -> bool:
-        """A session starts only on an ID ending in 1."""
-        return cls.draw_position(draw_id) == 1
+    @staticmethod
+    def is_session_start_draw(draw_id: str) -> bool:
+        return SessionState.is_session_start_draw(draw_id)
 
-    @classmethod
-    def is_session_end_draw(cls, draw_id: str) -> bool:
-        """A complete session ends on an ID ending in 0."""
-        return cls.draw_position(draw_id) == 0
+    @staticmethod
+    def is_session_end_draw(draw_id: str) -> bool:
+        return SessionState.is_session_end_draw(draw_id)
 
     def is_complete(self) -> bool:
-        """Return True only after exactly 30 consecutive draws are captured."""
-        return (
-            self.running
-            and len(self.results) == SESSION_DRAW_COUNT
-            and bool(self.results)
-            and self.is_session_end_draw(self.results[-1][0])
-        )
-
-    # --------------------------------------------------
+        return self.state.is_complete()
 
     def wait_for_next_session(
         self,
@@ -64,208 +86,105 @@ class SessionManager:
         previous_draw: str = "",
         previous_history: tuple[int, ...] | None = None,
     ):
-        """Wait until the next observed draw ID ending in 1."""
-        print()
-        print(LINE)
-        print("Waiting for next session start (draw ID ending in 1)...")
-        print(LINE)
-
+        """Wait for a verified snapshot at the next ``...1`` boundary."""
+        self.presenter.waiting_for_session()
         last_draw = previous_draw
         last_history = previous_history
+
         while True:
             snapshot = reader.wait_for_new_draw(last_draw, last_history)
             last_draw = snapshot.draw_id
             last_history = tuple(snapshot.history)
-
-            print(
-                f"\rWaiting... draw {snapshot.draw_id} "
-                f"(position {self.draw_position(snapshot.draw_id)})",
-                end="",
+            self.presenter.waiting_draw(
+                snapshot.draw_id,
+                self.draw_position(snapshot.draw_id),
             )
 
             if self.is_session_start_draw(snapshot.draw_id):
-                print()
+                self.presenter.session_boundary_found()
                 return snapshot
 
-            sleep(0.01)
-
-    # --------------------------------------------------
-
-    def start(self, start_draw_id: str):
-        """Start a fresh 30-draw session at an ID ending in 1."""
-        if not self.is_session_start_draw(start_draw_id):
-            raise ValueError(
-                f"Session must start on a draw ID ending in 1: {start_draw_id}"
-            )
-
-        self.session_name = f"draw-{start_draw_id}"
-        self.start_draw_id = start_draw_id
-        self.results = []
-        self._range_trend_history = []
-        self.running = True
-
-        end_draw_id = str(int(start_draw_id) + SESSION_DRAW_COUNT - 1)
-
-        print()
-        print(LINE)
-        print(f"Started session at draw {start_draw_id}")
-        print(f"Session length  : {SESSION_DRAW_COUNT} draws")
-        print(f"Ends at draw    : {end_draw_id}")
-        print(LINE)
-
-    # --------------------------------------------------
-
-    def add_result(self, draw_id: str, result: int):
-        """Record one draw and reject duplicates or gaps."""
-        if not self.running:
-            raise RuntimeError("Cannot add a result when no session is running")
-
-        validate_number(result)
-
-        if self.results:
-            previous_draw_id = self.results[-1][0]
-            if draw_id == previous_draw_id:
-                return
-            if not draw_id.isdigit() or int(draw_id) != int(previous_draw_id) + 1:
-                raise ValueError(
-                    "Session draw IDs must be consecutive: "
-                    f"expected {int(previous_draw_id) + 1}, got {draw_id}"
-                )
-        elif draw_id != self.start_draw_id:
-            raise ValueError(
-                f"First session draw must be {self.start_draw_id}, got {draw_id}"
-            )
-
-        self.results.append((draw_id, result))
-        self.storage.append_result(draw_id, result)
-        self._print_live_gap(result)
-        self._print_range_trend()
-
-    # --------------------------------------------------
-
-    def live_gap(self, number: int) -> int:
-        """Return the current live gap for a number in this session."""
-        return GapAnalyzer.current_gap(
-            [value for _, value in self.results],
-            number,
+    def start(self, start_draw_id: str) -> None:
+        """Create a session and checkpoint its initial empty state."""
+        self.state.start(start_draw_id)
+        self.storage.checkpoint_session(
+            self.session_name,
+            start_draw_id,
+            self.results,
         )
+        self.presenter.reset()
+        self.presenter.session_started(start_draw_id, SESSION_DRAW_COUNT)
 
-    def live_last_gap(self, number: int) -> int | None:
-        """Return draws between the two most recent appearances."""
-        return GapAnalyzer.last_gap(
-            [value for _, value in self.results],
-            number,
-        )
-
-    def _print_live_gap(self, number: int) -> None:
-        """Print gap history only when the number repeats in this session."""
-        numbers = [value for _, value in self.results]
-        positions = [
-            index
-            for index, value in enumerate(numbers)
-            if value == number
-        ]
-
-        if len(positions) < 2:
+    def add_result(self, draw_id: str, result: int) -> None:
+        """Validate, checkpoint, then publish one captured result."""
+        updated_results = self.state.proposed_results(draw_id, result)
+        if updated_results is None:
             return
 
-        gaps = [
-            positions[index] - positions[index - 1] - 1
-            for index in range(1, len(positions))
-        ]
-        gap_text = " | ".join(
-            f"{ordinal}{suffix} gap: {gap}"
-            for ordinal, suffix, gap in zip(
-                range(1, len(gaps) + 1),
-                ["st", "nd", "rd"],
-                gaps,
-            )
+        self.storage.checkpoint_session(
+            self.session_name,
+            self.start_draw_id or "",
+            updated_results,
         )
+        self.state.commit_results(updated_results)
+        self.presenter.result_recorded(self.results, result)
 
-        # For repeats beyond the first three, keep standard ordinal labels.
-        if len(gaps) > 3:
-            gap_text = " | ".join(
-                f"{self._ordinal(index)} gap: {gap}"
-                for index, gap in enumerate(gaps, start=1)
-            )
+    def abandon(self, reason: str, observed_draw_id: str):
+        """Archive an incomplete session and return to the waiting state."""
+        if not self.running:
+            return None
 
-        print(f"Live gap | Number {number:>2} | {gap_text}")
-
-    @staticmethod
-    def _ordinal(number: int) -> str:
-        """Return a compact ordinal label such as '1st' or '22nd'."""
-        if 10 <= number % 100 <= 20:
-            suffix = "th"
-        else:
-            suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
-        return f"{number}{suffix}"
-
-    def _print_range_trend(self) -> None:
-        counts = {label: 0 for label, _ in NUMBER_BANDS}
-
-        for _, value in self.results:
-            band = number_band(value)
-            if band is not None:
-                counts[band] += 1
-
-        self._range_trend_history.append(
-            tuple(counts[label] for label, _ in NUMBER_BANDS)
+        captured_count = len(self.results)
+        start_draw_id = self.start_draw_id
+        archived_path = self.storage.archive_active_session(reason, observed_draw_id)
+        self.state.clear()
+        self.presenter.reset()
+        self.presenter.session_abandoned(
+            captured_count,
+            SESSION_DRAW_COUNT,
+            start_draw_id,
+            archived_path,
         )
+        return archived_path
 
-        # Keep the graph compact while retaining recent movement.
-        history = self._range_trend_history[-9:]
-        maximum = max(max(snapshot) for snapshot in history)
-        levels = "▁▂▃▄▅▆▇█"
+    def live_gap(self, number: int) -> int:
+        return self.presenter.live_gap(self.results, number)
 
-        def sparkline(index: int) -> str:
-            values = [snapshot[index] for snapshot in history]
-            if maximum == 0:
-                return levels[0] * len(values)
-            return "".join(
-                levels[min(len(levels) - 1, round(value / maximum * (len(levels) - 1)))]
-                for value in values
-            )
-
-        print("RANGE TREND")
-        for index, (label, _) in enumerate(NUMBER_BANDS):
-            print(f"{label:<6} {sparkline(index):<9}     COUNT: {counts[label]:02d}")
+    def live_last_gap(self, number: int) -> int | None:
+        return self.presenter.live_last_gap(self.results, number)
 
     def session_expired(self) -> bool:
         """Backward-compatible alias for the draw-based completion check."""
         return self.is_complete()
 
-    # --------------------------------------------------
-
-    def finish(self):
-        """Finalize and save a complete session."""
+    def finish(self) -> None:
+        """Build the final report, persist it, then clear active state."""
         if not self.running:
             return
-
         if not self.is_complete():
             raise RuntimeError(
                 f"Cannot finish incomplete session: "
                 f"{len(self.results)}/{SESSION_DRAW_COUNT} draws"
             )
 
-        self.running = False
-
-        stats = self.statistics.build(self.results)
-        report = SessionReport(self.session_name, self.results, stats)
-        report.print()
-
-        filename = self.storage.save_session(
+        statistics = self.statistics.build(self.results)
+        report_text = self.presenter.report(
             self.session_name,
-            report.text(),
+            self.results,
+            statistics,
         )
-        print(f"\nSaved session -> {filename}")
-
-        self.results.clear()
-        self.start_draw_id = None
-
-    # --------------------------------------------------
+        filename = self.storage.save_session(self.session_name, report_text)
+        self.storage.append_completed_session(self.results)
+        self.storage.clear_active_session()
+        self.state.clear()
+        self.presenter.reset()
+        self.presenter.session_finished(report_text, filename)
 
     def total_results(self) -> int:
         return len(self.results)
+
+    def last_draw_id(self) -> str:
+        return self.state.last_draw_id()
 
     def is_running(self) -> bool:
         return self.running

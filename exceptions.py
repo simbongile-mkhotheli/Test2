@@ -48,6 +48,18 @@ class GameNotLoaded(RecoverableError):
     pass
 
 
+class SessionGap(TrackerError):
+    """Captured draw IDs skipped ahead, so the active session is incomplete."""
+
+    def __init__(self, expected_draw_id: str, observed_draw_id: str):
+        self.expected_draw_id = expected_draw_id
+        self.observed_draw_id = observed_draw_id
+        super().__init__(
+            "Session draw IDs must be consecutive: "
+            f"expected {expected_draw_id}, got {observed_draw_id}"
+        )
+
+
 # ----------------------------------------------------
 # Fatal
 # ----------------------------------------------------

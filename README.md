@@ -34,11 +34,12 @@ main.py
   -> Tracker
       -> FrameFinder
       -> GameReader
-      -> SessionManager
+      -> SessionManager (orchestration)
+          -> SessionState (session rules and state)
           -> Storage
           -> Statistics
-              -> Gaps
-          -> SessionReport
+              -> AnalyticsPipeline -> Gaps
+          -> SessionPresenter -> SessionReport
 ```
 
 ## Analytics retained
@@ -77,6 +78,17 @@ SESSION END
 
 The parser remains compatible with the previous `draw_id,result` format so
 existing historical data can still be read.
+
+During a session, the tracker stores an atomic checkpoint in `sessions/`; only
+completed 30-draw sessions are written to `results.txt`. A restart resumes the
+incomplete session when its next draw is still available; if all 30 draws were
+captured before interruption, startup finalizes the report and results log
+without duplicating it.
+
+If the tracker misses one or more draw IDs, the incomplete session cannot be
+completed reliably. It is saved to `sessions/abandoned/` with the reason and
+first observed draw after the gap, then the tracker waits for the next valid
+`...1` session boundary instead of stopping.
 
 ## Requirements
 

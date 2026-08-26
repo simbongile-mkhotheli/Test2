@@ -1,4 +1,20 @@
+import pytest
+
+from exceptions import SessionGap
 from tracker.session_manager import SESSION_DRAW_COUNT, SessionManager
+
+
+def make_manager(tmp_path, monkeypatch) -> SessionManager:
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr(
+        "storage.storage.ACTIVE_SESSION_FILE",
+        tmp_path / ".active-session.json",
+    )
+    monkeypatch.setattr(
+        "storage.storage.ABANDONED_SESSIONS_DIR",
+        tmp_path / "abandoned",
+    )
+    return SessionManager()
 
 
 def test_draw_position_uses_last_digit():
@@ -13,8 +29,8 @@ def test_session_starts_only_on_draw_id_ending_in_one():
     assert not SessionManager.is_session_start_draw("12608180152")
 
 
-def test_session_ends_only_on_thirtieth_draw_at_zero():
-    manager = SessionManager()
+def test_session_ends_only_on_thirtieth_draw_at_zero(tmp_path, monkeypatch):
+    manager = make_manager(tmp_path, monkeypatch)
     manager.start_draw_id = "12608180151"
     manager.running = True
 
@@ -30,8 +46,8 @@ def test_session_ends_only_on_thirtieth_draw_at_zero():
     assert manager.is_complete()
 
 
-def test_wrong_end_position_does_not_complete():
-    manager = SessionManager()
+def test_wrong_end_position_does_not_complete(tmp_path, monkeypatch):
+    manager = make_manager(tmp_path, monkeypatch)
     manager.start_draw_id = "12608180151"
     manager.running = True
     manager.results = [
@@ -43,24 +59,13 @@ def test_wrong_end_position_does_not_complete():
     assert not manager.is_complete()
 
 
-def test_session_requires_consecutive_draw_ids():
-    manager = SessionManager()
+def test_session_requires_consecutive_draw_ids(tmp_path, monkeypatch):
+    manager = make_manager(tmp_path, monkeypatch)
     manager.start_draw_id = "12608180151"
     manager.running = True
-    manager.add_result = manager.add_result.__get__(manager)
-
-
-def test_session_requires_consecutive_draw_ids(monkeypatch):
-    manager = SessionManager()
-    manager.start_draw_id = "12608180151"
-    manager.running = True
-    manager.storage.append_result = lambda *args: None
+    manager.storage.checkpoint_session = lambda *args: None
 
     manager.add_result("12608180151", 15)
 
-    try:
+    with pytest.raises(SessionGap, match="expected 12608180152"):
         manager.add_result("12608180153", 14)
-    except ValueError as exc:
-        assert "expected 12608180152" in str(exc)
-    else:
-        raise AssertionError("Expected non-consecutive draw ID to be rejected")

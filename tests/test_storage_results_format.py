@@ -45,3 +45,43 @@ def test_read_results_supports_new_log_and_legacy_csv(tmp_path, monkeypatch):
         ("12608180152", 16),
         ("12608180153", 13),
     ]
+
+
+def test_active_session_checkpoint_is_recoverable(tmp_path, monkeypatch):
+    results_file = tmp_path / "results.txt"
+    active_session_file = tmp_path / "sessions" / ".active-session.json"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", results_file)
+    monkeypatch.setattr("storage.storage.ACTIVE_SESSION_FILE", active_session_file)
+
+    storage = Storage()
+    results = [
+        ("12608180151", 15),
+        ("12608180152", 16),
+    ]
+    storage.checkpoint_session("draw-12608180151", "12608180151", results)
+
+    recovered = storage.load_active_session()
+
+    assert recovered is not None
+    assert recovered.name == "draw-12608180151"
+    assert recovered.start_draw_id == "12608180151"
+    assert recovered.results == results
+
+
+def test_completed_session_log_is_atomic_and_idempotent(tmp_path, monkeypatch):
+    results_file = tmp_path / "results.txt"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", results_file)
+
+    storage = Storage()
+    results = [
+        (str(12608180151 + offset), offset % 19)
+        for offset in range(30)
+    ]
+
+    storage.append_completed_session(results)
+    storage.append_completed_session(results)
+
+    text = results_file.read_text(encoding="utf-8")
+    assert text.count("SESSION START : 12608180151") == 1
+    assert "  1 | 12608180151         |      0" in text
+    assert " 30 | 12608180180         |     10" in text

@@ -1,8 +1,20 @@
 """Persistence for the human-readable draw log and session reports."""
 
+import json
+import os
 import re
+from dataclasses import dataclass
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
-from config import LINE, RESULTS_FILE, SESSIONS_DIR
+from config import (
+    ACTIVE_SESSION_FILE,
+    ABANDONED_SESSIONS_DIR,
+    LINE,
+    RESULTS_FILE,
+    SESSIONS_DIR,
+    SESSION_DRAW_COUNT,
+)
 from models.number_domain import validate_number
 
 
@@ -10,43 +22,245 @@ _DRAW_LINE_RE = re.compile(r"^\s*(\d{1,3})\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
 _CSV_LINE_RE = re.compile(r"^\s*(\d+)\s*,\s*(-?\d+)\s*$")
 
 
+@dataclass(frozen=True, slots=True)
+class ActiveSession:
+    """Durable state required to resume a session after an interruption."""
+
+    name: str
+    start_draw_id: str
+    results: list[tuple[str, int]]
+
+
 class Storage:
     def __init__(self):
         RESULTS_FILE.touch(exist_ok=True)
+
+    @staticmethod
+    def _atomic_write_text(path: Path, text: str) -> None:
+        """Replace a text file only after its complete contents are durable."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path: Path | None = None
+
+        try:
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary_file:
+                temporary_path = Path(temporary_file.name)
+                temporary_file.write(text)
+                temporary_file.flush()
+                os.fsync(temporary_file.fileno())
+
+            os.replace(temporary_path, path)
+        except Exception:
+            if temporary_path is not None and temporary_path.exists():
+                temporary_path.unlink()
+            raise
+
+    @staticmethod
+    def _validated_results(
+        results: list[tuple[str, int]],
+        start_draw_id: str,
+    ) -> list[tuple[str, int]]:
+        if not start_draw_id or not start_draw_id.isdigit():
+            raise ValueError(f"Invalid session start draw ID: {start_draw_id!r}")
+
+        validated: list[tuple[str, int]] = []
+        for position, row in enumerate(results):
+            try:
+                draw_id, result = row
+            except (TypeError, ValueError) as error:
+                raise ValueError(f"Invalid persisted result at position {position}") from error
+
+            if not isinstance(draw_id, str) or not draw_id.isdigit():
+                raise ValueError(f"Invalid draw ID at position {position}: {draw_id!r}")
+
+            if validated and int(draw_id) != int(validated[-1][0]) + 1:
+                raise ValueError(
+                    "Persisted session draw IDs must be consecutive: "
+                    f"expected {int(validated[-1][0]) + 1}, got {draw_id}"
+                )
+
+            validated.append((draw_id, validate_number(result)))
+
+        if validated and validated[0][0] != start_draw_id:
+            raise ValueError(
+                f"First persisted draw must be {start_draw_id}, got {validated[0][0]}"
+            )
+
+        return validated
+
+    def checkpoint_session(
+        self,
+        session_name: str,
+        start_draw_id: str,
+        results: list[tuple[str, int]],
+    ) -> None:
+        """Atomically save the active session after each accepted draw."""
+        validated_results = self._validated_results(results, start_draw_id)
+        payload = {
+            "version": 1,
+            "name": session_name,
+            "start_draw_id": start_draw_id,
+            "results": validated_results,
+        }
+        self._atomic_write_text(
+            ACTIVE_SESSION_FILE,
+            json.dumps(payload, separators=(",", ":")),
+        )
+
+    def load_active_session(self) -> ActiveSession | None:
+        """Load a complete checkpoint, if an interruption left one behind."""
+        if not ACTIVE_SESSION_FILE.exists():
+            return None
+
+        try:
+            payload = json.loads(ACTIVE_SESSION_FILE.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValueError("Active session checkpoint is not valid JSON") from error
+
+        if not isinstance(payload, dict) or payload.get("version") != 1:
+            raise ValueError("Active session checkpoint has an unsupported format")
+
+        session_name = payload.get("name")
+        start_draw_id = payload.get("start_draw_id")
+        raw_results = payload.get("results")
+        if not isinstance(session_name, str) or not isinstance(raw_results, list):
+            raise ValueError("Active session checkpoint is missing required fields")
+
+        results = self._validated_results(raw_results, start_draw_id)
+        return ActiveSession(
+            name=session_name,
+            start_draw_id=start_draw_id,
+            results=results,
+        )
+
+    def clear_active_session(self) -> None:
+        """Remove a checkpoint only after its complete session is persisted."""
+        try:
+            ACTIVE_SESSION_FILE.unlink()
+        except FileNotFoundError:
+            pass
+
+    def archive_active_session(
+        self,
+        reason: str,
+        observed_draw_id: str,
+    ) -> Path | None:
+        """Preserve an unrecoverable partial session, then stop resuming it."""
+        checkpoint = self.load_active_session()
+        if checkpoint is None:
+            return None
+
+        if not observed_draw_id.isdigit():
+            raise ValueError(f"Invalid observed draw ID: {observed_draw_id!r}")
+
+        last_draw_id = (
+            checkpoint.results[-1][0]
+            if checkpoint.results
+            else checkpoint.start_draw_id
+        )
+        archive_path = ABANDONED_SESSIONS_DIR / (
+            f"{checkpoint.name}-after-{last_draw_id}.json"
+        )
+        payload = {
+            "version": 1,
+            "status": "abandoned",
+            "reason": reason,
+            "observed_draw_id": observed_draw_id,
+            "name": checkpoint.name,
+            "start_draw_id": checkpoint.start_draw_id,
+            "results": checkpoint.results,
+        }
+        self._atomic_write_text(
+            archive_path,
+            json.dumps(payload, separators=(",", ":")),
+        )
+        self.clear_active_session()
+        return archive_path
 
     def append_result(
         self,
         draw_id: str,
         result: int,
     ) -> None:
+        """Legacy per-draw log writer retained for compatibility.
+
+        Runtime session persistence uses ``checkpoint_session`` and
+        ``append_completed_session`` so incomplete sessions never reach the
+        result log.
+        """
         validate_number(result)
         position = int(draw_id[-1])
+        existing = RESULTS_FILE.read_text(encoding="utf-8")
+        lines: list[str] = []
         if position == 1:
-            with RESULTS_FILE.open("a", encoding="utf-8") as file:
-                if RESULTS_FILE.stat().st_size:
-                    file.write("\n")
-                file.write(LINE + "\n")
-                file.write(f"SESSION START : {draw_id}\n")
-                file.write(LINE + "\n")
-                file.write("Pos | Draw ID             | Result\n")
-                file.write("----+---------------------+-------\n")
+            if existing:
+                lines.append("")
+            lines.extend(
+                (
+                    LINE,
+                    f"SESSION START : {draw_id}",
+                    LINE,
+                    "Pos | Draw ID             | Result",
+                    "----+---------------------+-------",
+                )
+            )
 
-        with RESULTS_FILE.open("a", encoding="utf-8") as file:
-            file.write(f"{position:>3} | {draw_id:<19} | {result:>6}\n")
+        lines.append(f"{position:>3} | {draw_id:<19} | {result:>6}")
 
         if position == 0:
-            with RESULTS_FILE.open("a", encoding="utf-8") as file:
-                file.write(LINE + "\n")
-                file.write("SESSION END\n")
-                file.write(LINE + "\n")
+            lines.extend((LINE, "SESSION END", LINE))
+
+        suffix = "\n".join(lines) + "\n"
+        self._atomic_write_text(RESULTS_FILE, existing + suffix)
+
+    def append_completed_session(self, results: list[tuple[str, int]]) -> None:
+        """Atomically append one complete session and make retries idempotent."""
+        if not results:
+            raise ValueError("Cannot persist an empty completed session")
+
+        start_draw_id = results[0][0]
+        validated_results = self._validated_results(results, start_draw_id)
+        if len(validated_results) != SESSION_DRAW_COUNT:
+            raise ValueError(
+                f"Completed sessions must contain {SESSION_DRAW_COUNT} draws"
+            )
+        if start_draw_id[-1] != "1" or validated_results[-1][0][-1] != "0":
+            raise ValueError("Completed session has invalid draw-ID boundaries")
+
+        marker = f"SESSION START : {start_draw_id}"
+        existing = RESULTS_FILE.read_text(encoding="utf-8")
+        if marker in existing:
+            return
+
+        lines = [
+            LINE,
+            marker,
+            LINE,
+            "Pos | Draw ID             | Result",
+            "----+---------------------+-------",
+        ]
+        lines.extend(
+            f"{position:>3} | {draw_id:<19} | {result:>6}"
+            for position, (draw_id, result) in enumerate(validated_results, start=1)
+        )
+        lines.extend((LINE, "SESSION END", LINE))
+        block = "\n".join(lines) + "\n"
+        separator = "\n" if existing else ""
+        self._atomic_write_text(RESULTS_FILE, existing + separator + block)
 
     def save_session(self, session_name: str, report: str):
         filename = SESSIONS_DIR / f"{session_name}.txt"
-        filename.write_text(report, encoding="utf-8")
+        self._atomic_write_text(filename, report)
         return filename
 
     def clear_results(self):
-        RESULTS_FILE.write_text("", encoding="utf-8")
+        self._atomic_write_text(RESULTS_FILE, "")
 
     def read_results(self):
         if not RESULTS_FILE.exists():

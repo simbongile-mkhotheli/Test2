@@ -15,7 +15,7 @@ Responsibilities
 from time import sleep
 from traceback import format_exc
 
-from exceptions import RecoverableError
+from exceptions import RecoverableError, SessionGap
 from tracker.frame_finder import FrameFinder
 from tracker.game_reader import GameReader
 from utils.logger import Logger
@@ -30,7 +30,7 @@ class Tracker:
         self.frame = None
         self.reader = None
         self.session = SessionManager()
-        self.last_round = ""
+        self.last_round = self.session.last_draw_id()
         self.last_history: tuple[int, ...] | None = None
 
     # --------------------------------------------------
@@ -124,6 +124,11 @@ class Tracker:
                     if self.session.is_complete():
                         self.session.finish()
                         break
+
+                except SessionGap as ex:
+                    Logger.warning(str(ex))
+                    self.session.abandon(str(ex), ex.observed_draw_id)
+                    break
 
                 except RecoverableError as ex:
                     Logger.warning(str(ex))

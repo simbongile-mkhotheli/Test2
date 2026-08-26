@@ -65,6 +65,12 @@ SESSIONS_DIR = BASE_DIR / "sessions"
 
 SESSIONS_DIR.mkdir(exist_ok=True)
 
+# Atomic checkpoint for a session that has started but is not yet finalized.
+ACTIVE_SESSION_FILE = SESSIONS_DIR / ".active-session.json"
+
+# Incomplete sessions that miss one or more draws are retained here for audit.
+ABANDONED_SESSIONS_DIR = SESSIONS_DIR / "abandoned"
+
 
 # -----------------------------------------------------
 # Session boundaries
