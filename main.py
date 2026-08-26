@@ -39,7 +39,7 @@ def main():
 
         page.goto(
             BETGAMES_URL,
-            wait_until="networkidle"
+            wait_until="domcontentloaded"
         )
 
         print()

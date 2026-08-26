@@ -10,6 +10,7 @@ from analytics.analyzers.gaps import GapAnalyzer
 from analytics.reports.session import SessionReport
 from analytics.statistics import Statistics
 from config import LINE, SESSION_DRAW_COUNT
+from models.number_domain import NUMBER_BANDS, number_band, validate_number
 from storage.storage import Storage
 
 
@@ -57,7 +58,12 @@ class SessionManager:
 
     # --------------------------------------------------
 
-    def wait_for_next_session(self, reader, previous_draw: str = ""):
+    def wait_for_next_session(
+        self,
+        reader,
+        previous_draw: str = "",
+        previous_history: tuple[int, ...] | None = None,
+    ):
         """Wait until the next observed draw ID ending in 1."""
         print()
         print(LINE)
@@ -65,9 +71,11 @@ class SessionManager:
         print(LINE)
 
         last_draw = previous_draw
+        last_history = previous_history
         while True:
-            snapshot = reader.wait_for_new_draw(last_draw)
+            snapshot = reader.wait_for_new_draw(last_draw, last_history)
             last_draw = snapshot.draw_id
+            last_history = tuple(snapshot.history)
 
             print(
                 f"\rWaiting... draw {snapshot.draw_id} "
@@ -111,6 +119,8 @@ class SessionManager:
         """Record one draw and reject duplicates or gaps."""
         if not self.running:
             raise RuntimeError("Cannot add a result when no session is running")
+
+        validate_number(result)
 
         if self.results:
             previous_draw_id = self.results[-1][0]
@@ -191,22 +201,15 @@ class SessionManager:
         return f"{number}{suffix}"
 
     def _print_range_trend(self) -> None:
-        counts = {
-            "1-6": 0,
-            "7-12": 0,
-            "13-19": 0,
-        }
+        counts = {label: 0 for label, _ in NUMBER_BANDS}
 
         for _, value in self.results:
-            if 1 <= value <= 6:
-                counts["1-6"] += 1
-            elif 7 <= value <= 12:
-                counts["7-12"] += 1
-            elif 13 <= value <= 19:
-                counts["13-19"] += 1
+            band = number_band(value)
+            if band is not None:
+                counts[band] += 1
 
         self._range_trend_history.append(
-            (counts["1-6"], counts["7-12"], counts["13-19"])
+            tuple(counts[label] for label, _ in NUMBER_BANDS)
         )
 
         # Keep the graph compact while retaining recent movement.
@@ -224,9 +227,8 @@ class SessionManager:
             )
 
         print("RANGE TREND")
-        print(f"1-6    {sparkline(0):<9}     COUNT: {counts['1-6']:02d}")
-        print(f"7-12   {sparkline(1):<9}     COUNT: {counts['7-12']:02d}")
-        print(f"13-19  {sparkline(2):<9}     COUNT: {counts['13-19']:02d}")
+        for index, (label, _) in enumerate(NUMBER_BANDS):
+            print(f"{label:<6} {sparkline(index):<9}     COUNT: {counts[label]:02d}")
 
     def session_expired(self) -> bool:
         """Backward-compatible alias for the draw-based completion check."""

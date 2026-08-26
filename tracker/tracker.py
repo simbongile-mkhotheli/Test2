@@ -31,6 +31,7 @@ class Tracker:
         self.reader = None
         self.session = SessionManager()
         self.last_round = ""
+        self.last_history: tuple[int, ...] | None = None
 
     # --------------------------------------------------
 
@@ -55,12 +56,19 @@ class Tracker:
             except RecoverableError:
                 Logger.warning(f"Reconnect failed. Retry in {delay}s")
                 sleep(delay)
-                delay = min(delay * 2, 50)
+                delay = min(delay * 2, 30)
 
     # --------------------------------------------------
 
     def _log_result(self, snapshot) -> None:
         Logger.new_result(snapshot.draw_id, snapshot.latest)
+
+    # --------------------------------------------------
+
+    def _remember_snapshot(self, snapshot) -> None:
+        """Retain a result fingerprint for the next draw verification."""
+        self.last_round = snapshot.draw_id
+        self.last_history = tuple(snapshot.history)
 
     # --------------------------------------------------
 
@@ -80,9 +88,10 @@ class Tracker:
                     snapshot = self.session.wait_for_next_session(
                         self.reader,
                         self.last_round,
+                        self.last_history,
                     )
 
-                    self.last_round = snapshot.draw_id
+                    self._remember_snapshot(snapshot)
                     self.session.start(snapshot.draw_id)
                     self.session.add_result(snapshot.draw_id, snapshot.latest)
                     self._log_result(snapshot)
@@ -99,8 +108,11 @@ class Tracker:
             while self.session.is_running():
 
                 try:
-                    snapshot = self.reader.wait_for_new_draw(self.last_round)
-                    self.last_round = snapshot.draw_id
+                    snapshot = self.reader.wait_for_new_draw(
+                        self.last_round,
+                        self.last_history,
+                    )
+                    self._remember_snapshot(snapshot)
 
                     self.session.add_result(
                         snapshot.draw_id,

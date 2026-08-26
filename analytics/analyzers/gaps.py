@@ -20,6 +20,11 @@ These are measured in completed draws, never draw-ID distance.
 from dataclasses import dataclass, field
 
 from analytics.analyzers.base import Analyzer
+from models.number_domain import (
+    NUMBER_VALUES,
+    validate_number,
+    validate_numbers,
+)
 
 
 @dataclass(slots=True)
@@ -35,17 +40,15 @@ class GapStatistics:
 class GapAnalyzer(Analyzer):
     """Calculate current/live, last, and longest gaps for 0-18."""
 
-    NUMBER_MIN = 0
-    NUMBER_MAX = 18
-
     def analyze(self, numbers: list[int]) -> GapStatistics:
+        validate_numbers(numbers)
         total = len(numbers)
         current: dict[int, int] = {}
         last: dict[int, int | None] = {}
         longest: dict[int, int] = {}
         active: list[int] = []
 
-        for target in range(self.NUMBER_MIN, self.NUMBER_MAX + 1):
+        for target in NUMBER_VALUES:
             positions = [
                 index
                 for index, number in enumerate(numbers)
@@ -98,6 +101,8 @@ class GapAnalyzer(Analyzer):
     @classmethod
     def current_gap(cls, numbers: list[int], target: int) -> int:
         """Return the current live gap for one target."""
+        validate_number(target)
+        validate_numbers(numbers)
         total = len(numbers)
         for index in range(total - 1, -1, -1):
             if numbers[index] == target:
@@ -107,6 +112,8 @@ class GapAnalyzer(Analyzer):
     @classmethod
     def last_gap(cls, numbers: list[int], target: int) -> int | None:
         """Return draws between the two most recent appearances."""
+        validate_number(target)
+        validate_numbers(numbers)
         positions = [
             index
             for index, number in enumerate(numbers)

@@ -32,6 +32,13 @@ VIEWPORT_HEIGHT = 900
 # Wait while looking for iframe
 FRAME_SEARCH_INTERVAL = 1.00
 
+# Poll interval while waiting for a draw or DOM stabilization.
+DRAW_POLL_INTERVAL = 0.05
+
+# A draw must produce three matching DOM snapshots within this period.
+SNAPSHOT_STABILITY_TIMEOUT = 10.0
+SNAPSHOT_STABLE_READS = 3
+
 
 # -----------------------------------------------------
 # Selectors

@@ -48,6 +48,9 @@ session are kept:
 
 - Gaps — longest gaps and active numbers.
 
+Game results are integers from `0` through `18`. Invalid values are rejected
+before they can enter a session, be saved, or be analyzed.
+
 Removed analytics include frequency, transition matrices, next-number
 prediction, recency, clusters, mirrors, streak summaries, rare numbers, heat,
 and prediction/learning infrastructure.

@@ -1,6 +1,7 @@
 """Compact human-readable session report."""
 
 from config import LINE
+from models.number_domain import NUMBER_VALUES
 
 
 class SessionReport:
@@ -48,7 +49,7 @@ class SessionReport:
         self.append("-------+-------------+------------")
 
         ranked = sorted(
-            range(19),
+            NUMBER_VALUES,
             key=lambda number: (
                 -gaps.current_gaps[number],
                 -gaps.longest_gaps[number],

@@ -3,6 +3,7 @@
 import re
 
 from config import LINE, RESULTS_FILE, SESSIONS_DIR
+from models.number_domain import validate_number
 
 
 _DRAW_LINE_RE = re.compile(r"^\s*(\d{1,3})\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
@@ -18,6 +19,7 @@ class Storage:
         draw_id: str,
         result: int,
     ) -> None:
+        validate_number(result)
         position = int(draw_id[-1])
         if position == 1:
             with RESULTS_FILE.open("a", encoding="utf-8") as file:
@@ -58,13 +60,13 @@ class Storage:
                 match = _DRAW_LINE_RE.match(stripped)
                 if match:
                     _, draw_id, result = match.groups()
-                    rows.append((draw_id, int(result)))
+                    rows.append((draw_id, validate_number(int(result))))
                     continue
 
                 # Backward-compatible reader for old raw CSV logs.
                 match = _CSV_LINE_RE.match(stripped)
                 if match:
                     draw_id, result = match.groups()
-                    rows.append((draw_id, int(result)))
+                    rows.append((draw_id, validate_number(int(result))))
 
         return rows

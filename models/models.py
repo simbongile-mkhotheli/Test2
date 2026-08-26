@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
 
+from models.number_domain import validate_number
+
 
 # ---------------------------------------------------------
 # Snapshot
@@ -49,6 +51,9 @@ class Result:
     draw_id: str
     number: int
     captured_at: datetime = field(default_factory=datetime.now)
+
+    def __post_init__(self) -> None:
+        validate_number(self.number)
 
     def csv(self) -> str:
         return f"{self.draw_id},{self.number}"
