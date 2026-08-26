@@ -4,8 +4,9 @@ from config import RESULTS_FILE, SESSIONS_DIR
 from storage.storage import Storage
 
 
-def test_default_results_log_is_stored_under_sessions():
-    assert RESULTS_FILE.parent == SESSIONS_DIR
+def test_default_results_log_is_stored_at_the_project_root():
+    assert RESULTS_FILE.parent != SESSIONS_DIR
+    assert RESULTS_FILE.name == "results.txt"
 
 
 def test_results_log_groups_sessions(tmp_path, monkeypatch):
@@ -126,3 +127,48 @@ def test_completed_session_log_is_atomic_and_idempotent(tmp_path, monkeypatch):
     assert "RESULT COUNTS" in text
     assert "     0 |     2" in text
     assert "Total  |    30" in text
+
+
+def test_live_results_append_each_new_draw_without_duplicates(tmp_path, monkeypatch):
+    results_file = tmp_path / "results.txt"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", results_file)
+    storage = Storage()
+    start_draw_id = "12608180151"
+
+    assert storage.append_live_results(
+        start_draw_id,
+        [(start_draw_id, 15)],
+    ) == (start_draw_id,)
+    assert storage.append_live_results(
+        start_draw_id,
+        [(start_draw_id, 15), ("12608180152", 16)],
+    ) == ("12608180152",)
+
+    text = results_file.read_text(encoding="utf-8")
+    assert text.count("SESSION START : 12608180151") == 1
+    assert text.count("12608180151") == 2  # header plus its one result row
+    assert "  1 | 12608180151         |     15" in text
+    assert "  2 | 12608180152         |     16" in text
+
+
+def test_incomplete_live_session_is_closed_with_its_counts(tmp_path, monkeypatch):
+    results_file = tmp_path / "results.txt"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", results_file)
+    storage = Storage()
+    results = [("12608180151", 0), ("12608180152", 15)]
+
+    storage.append_live_results("12608180151", results)
+    storage.mark_live_session_incomplete(
+        "12608180151",
+        results,
+        "12608180180",
+        ("12608180153",),
+    )
+
+    text = results_file.read_text(encoding="utf-8")
+    assert "RESULT COUNTS" in text
+    assert "     0 |     1" in text
+    assert "    15 |     1" in text
+    assert "Total  |     2" in text
+    assert "Missing draw IDs : 12608180153" in text
+    assert "SESSION INCOMPLETE" in text

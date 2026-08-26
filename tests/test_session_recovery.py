@@ -158,4 +158,6 @@ def test_session_manager_preserves_an_unrecoverable_partial_session(
     assert archive.exists()
     assert not manager.is_running()
     assert not (tmp_path / "sessions" / ".active-session.json").exists()
-    assert not (tmp_path / "results.txt").read_text(encoding="utf-8")
+    live_results = (tmp_path / "results.txt").read_text(encoding="utf-8")
+    assert "SESSION START : 12608260571" in live_results
+    assert "SESSION INCOMPLETE" in live_results

@@ -84,6 +84,10 @@ class SessionManager:
             checkpoint.start_draw_id,
             checkpoint.results,
         )
+        self.storage.append_live_results(
+            checkpoint.start_draw_id,
+            checkpoint.results,
+        )
         self.presenter.restore(self.results)
         if self.is_complete():
             self.finish()
@@ -153,6 +157,10 @@ class SessionManager:
                 self.start_draw_id or "",
                 updated_results,
             )
+            self.storage.append_live_results(
+                self.start_draw_id or "",
+                updated_results,
+            )
             self.state.commit_results(updated_results)
             accepted_draw_ids = tuple(
                 draw_id
@@ -193,6 +201,10 @@ class SessionManager:
             self.start_draw_id or "",
             updated_results,
         )
+        self.storage.append_live_results(
+            self.start_draw_id or "",
+            updated_results,
+        )
         self.state.commit_results(updated_results)
         self.presenter.result_recorded(self.results)
 
@@ -208,6 +220,12 @@ class SessionManager:
         captured_count = len(self.results)
         start_draw_id = self.start_draw_id
         archive_path = self.storage.preserve_incomplete_session(
+            observed_draw_id,
+            missing_draw_ids,
+        )
+        self.storage.mark_live_session_incomplete(
+            start_draw_id or "",
+            self.results,
             observed_draw_id,
             missing_draw_ids,
         )

@@ -35,9 +35,9 @@ no prediction or statistical analysis.
 
 ## Results log
 
-`sessions/results.txt` is a human-readable consolidated session log rather than
-an unstructured CSV stream. Each 30-result session is grouped into a table;
-the detailed report for the same session is stored as
+`results.txt` is the live, human-readable draw log. Every verified result is
+appended atomically as soon as it is captured. The detailed report for the
+same completed session, including its result counts, is stored as
 `sessions/draw-<start-draw-id>.txt`.
 
 ```text
@@ -55,19 +55,19 @@ SESSION END
 ======================================================================
 ```
 
-Each detailed session report also includes a `RESULT COUNTS` table for every
-result value from `0` through `18`, plus the total recorded draws. The former
-root-level `results.txt` is not modified.
+Each completed section in `results.txt` and every detailed session report
+includes a `RESULT COUNTS` table for values `0` through `18`, plus the total
+recorded draws.
 
-During a session, the tracker stores an atomic checkpoint in `sessions/`; only
-completed sessions containing all 30 required IDs are written to `results.txt`.
-A restart resumes the incomplete session and performs the same verified-history
-recovery when the next stable snapshot arrives. If all 30 results were
-captured before interruption, startup finalizes the report and results log
-without duplicating it.
+During a session, the tracker stores an atomic checkpoint in `sessions/`. A
+restart synchronizes any checkpointed rows that were not yet written to
+`results.txt`, without duplicating them. If all 30 required IDs were captured
+before interruption, startup finalizes the report and completes the live-log
+section.
 
 If a required draw has aged out of browser history, the session is saved under
-`sessions/incomplete/` for review and is never written to `results.txt`.
+`sessions/incomplete/` for review. Its live-log section is marked
+`SESSION INCOMPLETE` and includes the captured-result counts and missing IDs.
 
 ## Requirements
 

@@ -63,9 +63,11 @@ class Storage:
             raise
 
     @staticmethod
-    def _validated_results(
+    def _validated_session_rows(
         results: list[tuple[str, int]],
         start_draw_id: str,
+        *,
+        require_start_draw: bool,
     ) -> list[tuple[str, int]]:
         if not start_draw_id or not start_draw_id.isdigit():
             raise ValueError(f"Invalid session start draw ID: {start_draw_id!r}")
@@ -99,12 +101,51 @@ class Storage:
             seen_draw_ids.add(draw_id)
 
         validated.sort(key=lambda row: int(row[0]))
-        if validated and validated[0][0] != start_draw_id:
+        if require_start_draw and validated and validated[0][0] != start_draw_id:
             raise ValueError(
                 f"First persisted draw must be {start_draw_id}, got {validated[0][0]}"
             )
 
         return validated
+
+    @classmethod
+    def _validated_results(
+        cls,
+        results: list[tuple[str, int]],
+        start_draw_id: str,
+    ) -> list[tuple[str, int]]:
+        """Validate checkpoint rows, which must include the session start."""
+        return cls._validated_session_rows(
+            results,
+            start_draw_id,
+            require_start_draw=True,
+        )
+
+    @classmethod
+    def _completed_session_rows(
+        cls,
+        results: list[tuple[str, int]],
+    ) -> list[tuple[str, int]]:
+        """Validate a complete, draw-ID-aligned session before finalizing it."""
+        if not results:
+            raise ValueError("Cannot persist an empty completed session")
+
+        start_draw_id = results[0][0]
+        validated_results = cls._validated_results(results, start_draw_id)
+        if len(validated_results) != SESSION_DRAW_COUNT:
+            raise ValueError(
+                f"Completed sessions must contain {SESSION_DRAW_COUNT} draws"
+            )
+        expected_draw_ids = [
+            str(int(start_draw_id) + offset)
+            for offset in range(SESSION_DRAW_COUNT)
+        ]
+        if [draw_id for draw_id, _ in validated_results] != expected_draw_ids:
+            raise ValueError(
+                "Completed session must contain every consecutive draw ID in "
+                "its fixed session boundary"
+            )
+        return validated_results
 
     def checkpoint_session(
         self,
@@ -192,16 +233,148 @@ class Storage:
         self.clear_active_session()
         return archive_path
 
+    @staticmethod
+    def _result_count_lines(results: list[tuple[str, int]]) -> list[str]:
+        """Render the completed-session frequency table for the live log."""
+        counts = number_counts(result for _, result in results)
+        lines = ["RESULT COUNTS", "Number | Count", "-------+------"]
+        lines.extend(
+            f"{number:>6} | {counts[number]:>5}"
+            for number in NUMBER_VALUES
+        )
+        lines.append(f"Total  | {len(results):>5}")
+        return lines
+
+    def append_live_results(
+        self,
+        start_draw_id: str,
+        results: list[tuple[str, int]],
+    ) -> tuple[str, ...]:
+        """Atomically append newly verified draw rows to the live results log.
+
+        The session checkpoint is the authoritative recovery record. This log
+        is idempotent, so a restart can safely call this method again to fill
+        any rows written before an interruption.
+        """
+        validated_results = self._validated_session_rows(
+            results,
+            start_draw_id,
+            require_start_draw=False,
+        )
+        if not validated_results:
+            return ()
+
+        existing = RESULTS_FILE.read_text(encoding="utf-8")
+        marker = f"SESSION START : {start_draw_id}"
+        seen_draw_ids = {
+            match.group(2)
+            for line in existing.splitlines()
+            if (match := _DRAW_LINE_RE.match(line.strip()))
+        }
+        new_results = [
+            (draw_id, result)
+            for draw_id, result in validated_results
+            if draw_id not in seen_draw_ids
+        ]
+        if not new_results:
+            return ()
+
+        lines: list[str] = []
+        if marker not in existing:
+            if existing:
+                lines.append("")
+            lines.extend(
+                (
+                    LINE,
+                    marker,
+                    LINE,
+                    "Pos | Draw ID             | Result",
+                    "----+---------------------+-------",
+                )
+            )
+
+        session_start = int(start_draw_id)
+        lines.extend(
+            f"{int(draw_id) - session_start + 1:>3} | {draw_id:<19} | {result:>6}"
+            for draw_id, result in new_results
+        )
+        self._atomic_write_text(
+            RESULTS_FILE,
+            existing + "\n".join(lines) + "\n",
+        )
+        return tuple(draw_id for draw_id, _ in new_results)
+
+    def close_live_session(
+        self,
+        start_draw_id: str,
+        results: list[tuple[str, int]],
+    ) -> None:
+        """Append count totals and a closing marker once a session is complete."""
+        validated_results = self._completed_session_rows(results)
+        existing = RESULTS_FILE.read_text(encoding="utf-8")
+        marker = f"SESSION START : {start_draw_id}"
+        session_start = existing.find(marker)
+        if session_start < 0:
+            raise ValueError(f"Live session marker is missing: {start_draw_id}")
+
+        next_session = existing.find("SESSION START :", session_start + len(marker))
+        session_text = existing[session_start: next_session if next_session >= 0 else None]
+        if "SESSION END" in session_text:
+            return
+
+        lines = ["", *self._result_count_lines(validated_results), LINE, "SESSION END", LINE]
+        self._atomic_write_text(
+            RESULTS_FILE,
+            existing + "\n".join(lines) + "\n",
+        )
+
+    def mark_live_session_incomplete(
+        self,
+        start_draw_id: str,
+        results: list[tuple[str, int]],
+        observed_draw_id: str,
+        missing_draw_ids: tuple[str, ...],
+    ) -> None:
+        """Close a live partial session without presenting it as complete."""
+        validated_results = self._validated_session_rows(
+            results,
+            start_draw_id,
+            require_start_draw=True,
+        )
+        existing = RESULTS_FILE.read_text(encoding="utf-8")
+        marker = f"SESSION START : {start_draw_id}"
+        session_start = existing.find(marker)
+        if session_start < 0:
+            raise ValueError(f"Live session marker is missing: {start_draw_id}")
+
+        next_session = existing.find("SESSION START :", session_start + len(marker))
+        session_text = existing[session_start: next_session if next_session >= 0 else None]
+        if "SESSION END" in session_text or "SESSION INCOMPLETE" in session_text:
+            return
+
+        lines = [
+            "",
+            *self._result_count_lines(validated_results),
+            f"Missing draw IDs : {', '.join(missing_draw_ids)}",
+            f"Observed at      : {observed_draw_id}",
+            LINE,
+            "SESSION INCOMPLETE",
+            LINE,
+        ]
+        self._atomic_write_text(
+            RESULTS_FILE,
+            existing + "\n".join(lines) + "\n",
+        )
+
     def append_result(
         self,
         draw_id: str,
         result: int,
     ) -> None:
-        """Legacy per-draw log writer retained for compatibility.
+        """Legacy per-draw writer retained for compatibility callers.
 
-        Runtime session persistence uses ``checkpoint_session`` and
-        ``append_completed_session`` so incomplete sessions never reach the
-        result log.
+        The runtime uses ``append_live_results`` after every verified draw and
+        ``close_live_session`` only when the session reaches completion.
         """
         validate_number(result)
         position = int(draw_id[-1])
@@ -229,55 +402,11 @@ class Storage:
         self._atomic_write_text(RESULTS_FILE, existing + suffix)
 
     def append_completed_session(self, results: list[tuple[str, int]]) -> None:
-        """Atomically append one complete session and make retries idempotent."""
-        if not results:
-            raise ValueError("Cannot persist an empty completed session")
-
-        start_draw_id = results[0][0]
-        validated_results = self._validated_results(results, start_draw_id)
-        if len(validated_results) != SESSION_DRAW_COUNT:
-            raise ValueError(
-                f"Completed sessions must contain {SESSION_DRAW_COUNT} draws"
-            )
-        if start_draw_id[-1] != "1":
-            raise ValueError("Completed session must start on a draw ID ending in 1")
-        expected_draw_ids = [
-            str(int(start_draw_id) + offset)
-            for offset in range(SESSION_DRAW_COUNT)
-        ]
-        if [draw_id for draw_id, _ in validated_results] != expected_draw_ids:
-            raise ValueError(
-                "Completed session must contain every consecutive draw ID in "
-                "its fixed session boundary"
-            )
-
-        marker = f"SESSION START : {start_draw_id}"
-        existing = RESULTS_FILE.read_text(encoding="utf-8")
-        if marker in existing:
-            return
-
-        lines = [
-            LINE,
-            marker,
-            LINE,
-            "Pos | Draw ID             | Result",
-            "----+---------------------+-------",
-        ]
-        lines.extend(
-            f"{position:>3} | {draw_id:<19} | {result:>6}"
-            for position, (draw_id, result) in enumerate(validated_results, start=1)
-        )
-        counts = number_counts(result for _, result in validated_results)
-        lines.extend(("", "RESULT COUNTS", "Number | Count", "-------+------"))
-        lines.extend(
-            f"{number:>6} | {counts[number]:>5}"
-            for number in NUMBER_VALUES
-        )
-        lines.append(f"Total  | {len(validated_results):>5}")
-        lines.extend((LINE, "SESSION END", LINE))
-        block = "\n".join(lines) + "\n"
-        separator = "\n" if existing else ""
-        self._atomic_write_text(RESULTS_FILE, existing + separator + block)
+        """Finalize a complete session; retained for compatibility callers."""
+        validated_results = self._completed_session_rows(results)
+        start_draw_id = validated_results[0][0]
+        self.append_live_results(start_draw_id, validated_results)
+        self.close_live_session(start_draw_id, validated_results)
 
     def save_session(self, session_name: str, report: str):
         filename = SESSIONS_DIR / f"{session_name}.txt"
