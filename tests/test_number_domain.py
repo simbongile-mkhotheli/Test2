@@ -5,6 +5,7 @@ from models.number_domain import (
     NUMBER_VALUES,
     is_valid_number,
     number_band,
+    number_counts,
     validate_number,
 )
 from storage.storage import Storage
@@ -36,6 +37,15 @@ def test_number_bands_cover_each_non_zero_valid_number_once():
 def test_zero_is_valid_but_excluded_from_the_range_trend():
     assert is_valid_number(0)
     assert number_band(0) is None
+
+
+def test_number_counts_include_zero_and_all_domain_values():
+    counts = number_counts([0, 0, 6, 18])
+
+    assert counts[0] == 2
+    assert counts[6] == 1
+    assert counts[18] == 1
+    assert counts[1] == 0
 
 
 def test_result_model_rejects_invalid_result_number():

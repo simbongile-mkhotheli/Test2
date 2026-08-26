@@ -59,11 +59,13 @@ RESULTS_SELECTOR = '[data-qa="last-results-compact"]'
 
 BASE_DIR = Path(__file__).resolve().parent
 
-RESULTS_FILE = BASE_DIR / "results.txt"
-
 SESSIONS_DIR = BASE_DIR / "sessions"
 
 SESSIONS_DIR.mkdir(exist_ok=True)
+
+# Consolidated completed-session log. Every new result artifact lives under the
+# session directory; the former root-level results.txt is left untouched.
+RESULTS_FILE = SESSIONS_DIR / "results.txt"
 
 # Atomic checkpoint for a session that has started but is not yet finalized.
 ACTIVE_SESSION_FILE = SESSIONS_DIR / ".active-session.json"

@@ -15,7 +15,7 @@ from config import (
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
 )
-from models.number_domain import validate_number
+from models.number_domain import NUMBER_VALUES, number_counts, validate_number
 
 
 _DRAW_LINE_RE = re.compile(r"^\s*(\d{1,3})\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
@@ -33,6 +33,7 @@ class ActiveSession:
 
 class Storage:
     def __init__(self):
+        RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
         RESULTS_FILE.touch(exist_ok=True)
 
     @staticmethod
@@ -266,6 +267,13 @@ class Storage:
             f"{position:>3} | {draw_id:<19} | {result:>6}"
             for position, (draw_id, result) in enumerate(validated_results, start=1)
         )
+        counts = number_counts(result for _, result in validated_results)
+        lines.extend(("", "RESULT COUNTS", "Number | Count", "-------+------"))
+        lines.extend(
+            f"{number:>6} | {counts[number]:>5}"
+            for number in NUMBER_VALUES
+        )
+        lines.append(f"Total  | {len(validated_results):>5}")
         lines.extend((LINE, "SESSION END", LINE))
         block = "\n".join(lines) + "\n"
         separator = "\n" if existing else ""

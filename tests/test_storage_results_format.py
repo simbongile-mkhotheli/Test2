@@ -1,5 +1,11 @@
-from storage.storage import Storage
 import pytest
+
+from config import RESULTS_FILE, SESSIONS_DIR
+from storage.storage import Storage
+
+
+def test_default_results_log_is_stored_under_sessions():
+    assert RESULTS_FILE.parent == SESSIONS_DIR
 
 
 def test_results_log_groups_sessions(tmp_path, monkeypatch):
@@ -117,3 +123,6 @@ def test_completed_session_log_is_atomic_and_idempotent(tmp_path, monkeypatch):
     assert text.count("SESSION START : 12608180151") == 1
     assert "  1 | 12608180151         |      0" in text
     assert " 30 | 12608180180         |     10" in text
+    assert "RESULT COUNTS" in text
+    assert "     0 |     2" in text
+    assert "Total  |    30" in text

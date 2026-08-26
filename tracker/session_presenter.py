@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from config import LINE
-from models.number_domain import NUMBER_BANDS, number_band
+from models.number_domain import NUMBER_BANDS, NUMBER_VALUES, number_band, number_counts
 
 
 class SessionPresenter:
@@ -106,7 +106,14 @@ class SessionPresenter:
             f"{position:02d}   {draw_id:<19} {result:>6}"
             for position, (draw_id, result) in enumerate(results, start=1)
         )
-        lines.extend(("", LINE))
+        lines.extend(("", "RESULT COUNTS", "-" * 70, "Number | Count"))
+        lines.append("-------+------")
+        counts = number_counts(result for _, result in results)
+        lines.extend(
+            f"{number:>6} | {counts[number]:>5}"
+            for number in NUMBER_VALUES
+        )
+        lines.extend(("", f"Total  | {len(results):>5}", LINE))
         return "\n".join(lines)
 
     def session_finished(self, report_text: str, filename: Path) -> None:

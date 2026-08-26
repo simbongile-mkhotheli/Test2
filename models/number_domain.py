@@ -37,6 +37,14 @@ def validate_numbers(values: Iterable[object]) -> None:
         validate_number(value)
 
 
+def number_counts(values: Iterable[object]) -> dict[int, int]:
+    """Count valid game result numbers, including zero-valued results."""
+    counts = {number: 0 for number in NUMBER_VALUES}
+    for value in values:
+        counts[validate_number(value)] += 1
+    return counts
+
+
 def number_band(value: object) -> str | None:
     """Return a range-trend band, or None when the valid result is zero."""
     number = validate_number(value)

@@ -35,8 +35,10 @@ no prediction or statistical analysis.
 
 ## Results log
 
-`results.txt` is a human-readable session log rather than an unstructured CSV
-stream. Each 30-result session is grouped into a table:
+`sessions/results.txt` is a human-readable consolidated session log rather than
+an unstructured CSV stream. Each 30-result session is grouped into a table;
+the detailed report for the same session is stored as
+`sessions/draw-<start-draw-id>.txt`.
 
 ```text
 ======================================================================
@@ -53,8 +55,9 @@ SESSION END
 ======================================================================
 ```
 
-The parser remains compatible with the previous `draw_id,result` format so
-existing historical data can still be read.
+Each detailed session report also includes a `RESULT COUNTS` table for every
+result value from `0` through `18`, plus the total recorded draws. The former
+root-level `results.txt` is not modified.
 
 During a session, the tracker stores an atomic checkpoint in `sessions/`; only
 completed sessions containing all 30 required IDs are written to `results.txt`.
