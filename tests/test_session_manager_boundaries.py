@@ -1,6 +1,3 @@
-import pytest
-
-from exceptions import SessionGap
 from tracker.session_manager import SESSION_DRAW_COUNT, SessionManager
 
 
@@ -9,10 +6,6 @@ def make_manager(tmp_path, monkeypatch) -> SessionManager:
     monkeypatch.setattr(
         "storage.storage.ACTIVE_SESSION_FILE",
         tmp_path / ".active-session.json",
-    )
-    monkeypatch.setattr(
-        "storage.storage.ABANDONED_SESSIONS_DIR",
-        tmp_path / "abandoned",
     )
     return SessionManager()
 
@@ -29,7 +22,7 @@ def test_session_starts_only_on_draw_id_ending_in_one():
     assert not SessionManager.is_session_start_draw("12608180152")
 
 
-def test_session_ends_only_on_thirtieth_draw_at_zero(tmp_path, monkeypatch):
+def test_session_ends_only_after_every_required_draw_id_is_present(tmp_path, monkeypatch):
     manager = make_manager(tmp_path, monkeypatch)
     manager.start_draw_id = "12608180151"
     manager.running = True
@@ -46,26 +39,20 @@ def test_session_ends_only_on_thirtieth_draw_at_zero(tmp_path, monkeypatch):
     assert manager.is_complete()
 
 
-def test_wrong_end_position_does_not_complete(tmp_path, monkeypatch):
-    manager = make_manager(tmp_path, monkeypatch)
-    manager.start_draw_id = "12608180151"
-    manager.running = True
-    manager.results = [
-        (f"126081801{51 + i:02d}", i % 19)
-        for i in range(29)
-    ]
-    manager.results.append(("12608180181", 3))
-
-    assert not manager.is_complete()
-
-
-def test_session_requires_consecutive_draw_ids(tmp_path, monkeypatch):
+def test_session_keeps_a_partial_session_until_a_missing_draw_is_recovered(
+    tmp_path,
+    monkeypatch,
+):
     manager = make_manager(tmp_path, monkeypatch)
     manager.start_draw_id = "12608180151"
     manager.running = True
     manager.storage.checkpoint_session = lambda *args: None
 
     manager.add_result("12608180151", 15)
+    manager.add_result("12608180153", 14)
 
-    with pytest.raises(SessionGap, match="expected 12608180152"):
-        manager.add_result("12608180153", 14)
+    assert manager.results == [
+        ("12608180151", 15),
+        ("12608180153", 14),
+    ]
+    assert manager.missing_draw_ids[0] == "12608180152"

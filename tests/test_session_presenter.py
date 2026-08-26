@@ -1,4 +1,3 @@
-from analytics.statistics import Statistics
 from tracker.session_presenter import SessionPresenter
 
 
@@ -23,7 +22,7 @@ def test_presenter_builds_the_final_report():
     results = [("12608180151", 15)]
     presenter = SessionPresenter()
 
-    report = presenter.report("draw-12608180151", results, Statistics().build(results))
+    report = presenter.report("draw-12608180151", results)
 
     assert "BETGAMES SESSION REPORT" in report
     assert "draw-12608180151" in report

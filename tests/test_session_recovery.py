@@ -1,10 +1,6 @@
-import json
-
-import pytest
-
-from exceptions import SessionGap
 from tracker.session_manager import SessionManager
 from storage.storage import Storage
+from models.models import Snapshot
 
 
 def configure_session_storage(tmp_path, monkeypatch):
@@ -14,12 +10,6 @@ def configure_session_storage(tmp_path, monkeypatch):
         "storage.storage.ACTIVE_SESSION_FILE",
         tmp_path / "sessions" / ".active-session.json",
     )
-    monkeypatch.setattr(
-        "storage.storage.ABANDONED_SESSIONS_DIR",
-        tmp_path / "sessions" / "abandoned",
-    )
-
-
 def test_session_manager_resumes_interrupted_partial_session(tmp_path, monkeypatch):
     configure_session_storage(tmp_path, monkeypatch)
     results = [
@@ -55,27 +45,117 @@ def test_session_manager_finalizes_completed_checkpoint_on_startup(tmp_path, mon
     )
 
 
-def test_session_gap_archives_checkpoint_and_returns_to_waiting(tmp_path, monkeypatch):
+def test_session_manager_continues_a_restored_session_after_skipped_draw_ids(
+    tmp_path,
+    monkeypatch,
+):
     configure_session_storage(tmp_path, monkeypatch)
     manager = SessionManager()
     manager.start("12608180151")
     manager.add_result("12608180151", 15)
 
-    with pytest.raises(SessionGap) as error:
-        manager.add_result("12608180153", 14)
+    manager.add_result("12608180153", 14)
 
-    archived_path = manager.abandon(str(error.value), error.value.observed_draw_id)
+    assert manager.is_running()
+    assert manager.results == [
+        ("12608180151", 15),
+        ("12608180153", 14),
+    ]
 
+
+def test_session_manager_backfills_a_missing_draw_from_a_verified_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    manager = SessionManager()
+    start = 12608260571
+    manager.start(str(start))
+    for offset in range(16):
+        manager.add_result(str(start + offset), 1)
+
+    update = manager.add_snapshot(
+        Snapshot(
+            draw_id="12608260588",
+            timer=10,
+            latest=8,
+            history=[8, 17, *([1] * 8)],
+        )
+    )
+
+    assert update.recovered_draw_ids == ("12608260587",)
+    assert update.captured_current_draw
+    assert manager.results[-2:] == [
+        ("12608260587", 17),
+        ("12608260588", 8),
+    ]
+
+
+def test_restored_session_backfills_a_missing_draw_from_the_next_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    start = 12608260571
+    results = [(str(start + offset), 1) for offset in range(16)]
+    results.append(("12608260588", 8))
+    Storage().checkpoint_session("draw-12608260571", str(start), results)
+
+    manager = SessionManager()
+    update = manager.add_snapshot(
+        Snapshot(
+            draw_id="12608260589",
+            timer=10,
+            latest=4,
+            history=[4, 8, 17, *([1] * 7)],
+        )
+    )
+
+    assert update.recovered_draw_ids == ("12608260587",)
+    assert manager.results[-3:] == [
+        ("12608260587", 17),
+        ("12608260588", 8),
+        ("12608260589", 4),
+    ]
+
+
+def test_session_manager_preserves_an_unrecoverable_partial_session(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "storage.storage.INCOMPLETE_SESSIONS_DIR",
+        tmp_path / "sessions" / "incomplete",
+    )
+    manager = SessionManager()
+    start = 12608260571
+    manager.start(str(start))
+    for offset in range(16):
+        manager.add_result(str(start + offset), 1)
+
+    update = manager.add_snapshot(
+        Snapshot(
+            draw_id="12608260601",
+            timer=10,
+            latest=2,
+            history=[2] * 10,
+        )
+    )
+    archive = manager.preserve_incomplete(
+        "12608260601",
+        update.unavailable_draw_ids,
+    )
+
+    assert update.unavailable_draw_ids == (
+        "12608260587",
+        "12608260588",
+        "12608260589",
+        "12608260590",
+        "12608260591",
+    )
+    assert archive is not None
+    assert archive.exists()
     assert not manager.is_running()
-    assert manager.results == []
     assert not (tmp_path / "sessions" / ".active-session.json").exists()
-    assert archived_path == (
-        tmp_path / "sessions" / "abandoned" / "draw-12608180151-after-12608180151.json"
-    )
-    payload = json.loads(archived_path.read_text(encoding="utf-8"))
-    assert payload["status"] == "abandoned"
-    assert payload["observed_draw_id"] == "12608180153"
-    assert payload["results"] == [["12608180151", 15]]
-    assert not (tmp_path / "results.txt").exists() or not (tmp_path / "results.txt").read_text(
-        encoding="utf-8"
-    )
+    assert not (tmp_path / "results.txt").read_text(encoding="utf-8")

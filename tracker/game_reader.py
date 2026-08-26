@@ -70,6 +70,7 @@ class GameReader:
     # -------------------------------------------------
 
     def history(self):
+        """Return compact results in newest-first order for draw-ID recovery."""
 
         container = self.game.locator('[data-qa="last-results-compact"]')
 

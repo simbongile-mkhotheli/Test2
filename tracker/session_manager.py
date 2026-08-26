@@ -1,18 +1,33 @@
-"""Coordinate session state, persistence, analytics, and presentation."""
+"""Coordinate session state, persistence, browser-history recovery, and output."""
 
-from analytics.statistics import Statistics
+from dataclasses import dataclass
+from pathlib import Path
+
 from config import SESSION_DRAW_COUNT
 from storage.storage import Storage
 from tracker.session_presenter import SessionPresenter
 from tracker.session_state import SessionState
 
 
+@dataclass(frozen=True, slots=True)
+class SnapshotIngest:
+    """The effect of one verified browser snapshot on the active session."""
+
+    observed_draw_id: str
+    accepted_draw_ids: tuple[str, ...]
+    recovered_draw_ids: tuple[str, ...]
+    unavailable_draw_ids: tuple[str, ...]
+
+    @property
+    def captured_current_draw(self) -> bool:
+        return self.observed_draw_id in self.accepted_draw_ids
+
+
 class SessionManager:
-    """Application coordinator for one draw-ID-based tracking session."""
+    """Application coordinator for one draw-ID-aligned tracking session."""
 
     def __init__(self):
         self.storage = Storage()
-        self.statistics = Statistics()
         self.state = SessionState(SESSION_DRAW_COUNT)
         self.presenter = SessionPresenter()
         self._restore_active_session()
@@ -35,12 +50,16 @@ class SessionManager:
         self.state.start_draw_id = value
 
     @property
+    def end_draw_id(self) -> str | None:
+        return self.state.end_draw_id
+
+    @property
     def results(self) -> list[tuple[str, int]]:
         return self.state.results
 
     @results.setter
     def results(self, value: list[tuple[str, int]]) -> None:
-        self.state.results = value
+        self.state.commit_results(value)
 
     @property
     def running(self) -> bool:
@@ -49,6 +68,10 @@ class SessionManager:
     @running.setter
     def running(self, value: bool) -> None:
         self.state.running = value
+
+    @property
+    def missing_draw_ids(self) -> tuple[str, ...]:
+        return self.state.missing_draw_ids
 
     def _restore_active_session(self) -> None:
         """Restore an interrupted session, or finalize one already complete."""
@@ -72,10 +95,6 @@ class SessionManager:
     @staticmethod
     def is_session_start_draw(draw_id: str) -> bool:
         return SessionState.is_session_start_draw(draw_id)
-
-    @staticmethod
-    def is_session_end_draw(draw_id: str) -> bool:
-        return SessionState.is_session_end_draw(draw_id)
 
     def is_complete(self) -> bool:
         return self.state.is_complete()
@@ -113,10 +132,58 @@ class SessionManager:
             self.results,
         )
         self.presenter.reset()
-        self.presenter.session_started(start_draw_id, SESSION_DRAW_COUNT)
+        self.presenter.session_started(
+            start_draw_id,
+            self.end_draw_id or "",
+            SESSION_DRAW_COUNT,
+        )
+
+    def add_snapshot(self, snapshot) -> SnapshotIngest:
+        """Merge one verified snapshot and backfill in-window history rows."""
+        known_draw_ids = {draw_id for draw_id, _ in self.results}
+        updated_results = self.state.proposed_results_from_history(
+            snapshot.draw_id,
+            snapshot.history,
+        )
+
+        accepted_draw_ids: tuple[str, ...] = ()
+        if updated_results is not None:
+            self.storage.checkpoint_session(
+                self.session_name,
+                self.start_draw_id or "",
+                updated_results,
+            )
+            self.state.commit_results(updated_results)
+            accepted_draw_ids = tuple(
+                draw_id
+                for draw_id, _ in self.results
+                if draw_id not in known_draw_ids
+            )
+
+            recovered_draw_ids = tuple(
+                draw_id
+                for draw_id in accepted_draw_ids
+                if draw_id != snapshot.draw_id
+            )
+            if recovered_draw_ids:
+                self.presenter.draws_recovered(recovered_draw_ids)
+            self.presenter.result_recorded(self.results)
+        else:
+            recovered_draw_ids = ()
+
+        unavailable_draw_ids = self.state.unrecoverable_missing_draw_ids(
+            snapshot.draw_id,
+            len(snapshot.history),
+        )
+        return SnapshotIngest(
+            observed_draw_id=snapshot.draw_id,
+            accepted_draw_ids=accepted_draw_ids,
+            recovered_draw_ids=recovered_draw_ids,
+            unavailable_draw_ids=unavailable_draw_ids,
+        )
 
     def add_result(self, draw_id: str, result: int) -> None:
-        """Validate, checkpoint, then publish one captured result."""
+        """Add one direct result; snapshot ingestion is preferred at runtime."""
         updated_results = self.state.proposed_results(draw_id, result)
         if updated_results is None:
             return
@@ -127,35 +194,33 @@ class SessionManager:
             updated_results,
         )
         self.state.commit_results(updated_results)
-        self.presenter.result_recorded(self.results, result)
+        self.presenter.result_recorded(self.results)
 
-    def abandon(self, reason: str, observed_draw_id: str):
-        """Archive an incomplete session and return to the waiting state."""
+    def preserve_incomplete(
+        self,
+        observed_draw_id: str,
+        missing_draw_ids: tuple[str, ...],
+    ) -> Path | None:
+        """Preserve an unrecoverable session without contaminating results.txt."""
         if not self.running:
             return None
 
         captured_count = len(self.results)
         start_draw_id = self.start_draw_id
-        archived_path = self.storage.archive_active_session(reason, observed_draw_id)
+        archive_path = self.storage.preserve_incomplete_session(
+            observed_draw_id,
+            missing_draw_ids,
+        )
         self.state.clear()
         self.presenter.reset()
-        self.presenter.session_abandoned(
+        self.presenter.session_incomplete(
             captured_count,
             SESSION_DRAW_COUNT,
             start_draw_id,
-            archived_path,
+            missing_draw_ids,
+            archive_path,
         )
-        return archived_path
-
-    def live_gap(self, number: int) -> int:
-        return self.presenter.live_gap(self.results, number)
-
-    def live_last_gap(self, number: int) -> int | None:
-        return self.presenter.live_last_gap(self.results, number)
-
-    def session_expired(self) -> bool:
-        """Backward-compatible alias for the draw-based completion check."""
-        return self.is_complete()
+        return archive_path
 
     def finish(self) -> None:
         """Build the final report, persist it, then clear active state."""
@@ -164,14 +229,13 @@ class SessionManager:
         if not self.is_complete():
             raise RuntimeError(
                 f"Cannot finish incomplete session: "
-                f"{len(self.results)}/{SESSION_DRAW_COUNT} draws"
+                f"{len(self.results)}/{SESSION_DRAW_COUNT} results; "
+                f"missing {', '.join(self.missing_draw_ids)}"
             )
 
-        statistics = self.statistics.build(self.results)
         report_text = self.presenter.report(
             self.session_name,
             self.results,
-            statistics,
         )
         filename = self.storage.save_session(self.session_name, report_text)
         self.storage.append_completed_session(self.results)

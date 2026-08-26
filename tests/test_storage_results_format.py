@@ -1,4 +1,5 @@
 from storage.storage import Storage
+import pytest
 
 
 def test_results_log_groups_sessions(tmp_path, monkeypatch):
@@ -66,6 +67,37 @@ def test_active_session_checkpoint_is_recoverable(tmp_path, monkeypatch):
     assert recovered.name == "draw-12608180151"
     assert recovered.start_draw_id == "12608180151"
     assert recovered.results == results
+
+
+def test_partial_checkpoint_can_preserve_missing_draw_ids_for_later_recovery(
+    tmp_path,
+    monkeypatch,
+):
+    active_session_file = tmp_path / "sessions" / ".active-session.json"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.ACTIVE_SESSION_FILE", active_session_file)
+    storage = Storage()
+
+    results = [
+        ("12608180151", 15),
+        ("12608180153", 14),
+    ]
+    storage.checkpoint_session("draw-12608180151", "12608180151", results)
+
+    assert storage.load_active_session().results == results
+
+
+def test_completed_session_rejects_a_shifted_result_sequence(tmp_path, monkeypatch):
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    storage = Storage()
+    results = [
+        (str(12608180151 + offset), offset % 19)
+        for offset in range(29)
+    ]
+    results.append(("12608180181", 3))
+
+    with pytest.raises(ValueError, match="outside the session boundary"):
+        storage.append_completed_session(results)
 
 
 def test_completed_session_log_is_atomic_and_idempotent(tmp_path, monkeypatch):

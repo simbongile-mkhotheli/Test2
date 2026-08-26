@@ -2,30 +2,19 @@
 
 A local Python tracker for the BetGames Wheel of Fortune demo.
 
-The project focuses on reliable draw capture and draw-ID-based 30-draw
+The project focuses on reliable draw capture and draw-ID-aligned 30-draw
 sessions. Prediction, voting, confidence scoring, adaptive learning, and
 model-selection logic are intentionally absent.
 
 ## Session model
 
-Sessions are defined by the draw ID, not by the computer clock.
-
-A session starts at a draw ID ending in `1` and contains exactly 30 consecutive
-draws, ending at an ID ending in `0`:
-
-```text
-12608180151  # 01
-12608180152  # 02
-...
-12608180160  # 10
-...
-12608180170  # 20
-...
-12608180180  # 30 / session end
-```
+Sessions are defined by draw IDs, not by the computer clock. A session starts
+at a draw ID ending in `1` and contains the next 30 consecutive IDs. For
+example, a session beginning at `12608260571` must end at `12608260600`.
 
 The tracker can be launched at any time. It ignores draws until the next valid
-`...1` boundary and rejects gaps in the active 30-draw sequence.
+`...1` boundary. If it observes a later draw, it uses the verified
+newest-first browser history to backfill any required IDs still present there.
 
 ## Runtime
 
@@ -37,29 +26,17 @@ main.py
       -> SessionManager (orchestration)
           -> SessionState (session rules and state)
           -> Storage
-          -> Statistics
-              -> AnalyticsPipeline -> Gaps
-          -> SessionPresenter -> SessionReport
+          -> SessionPresenter
 ```
 
-## Analytics retained
-
-Only descriptive analytics that remain useful for understanding the captured
-session are kept:
-
-- Gaps — longest gaps and active numbers.
-
 Game results are integers from `0` through `18`. Invalid values are rejected
-before they can enter a session, be saved, or be analyzed.
-
-Removed analytics include frequency, transition matrices, next-number
-prediction, recency, clusters, mirrors, streak summaries, rare numbers, heat,
-and prediction/learning infrastructure.
+before they can enter a session or be saved. The tracker intentionally contains
+no prediction or statistical analysis.
 
 ## Results log
 
-`results.txt` is now a human-readable session log rather than an unstructured
-CSV stream. Each 30-draw session is grouped into a table:
+`results.txt` is a human-readable session log rather than an unstructured CSV
+stream. Each 30-result session is grouped into a table:
 
 ```text
 ======================================================================
@@ -80,15 +57,14 @@ The parser remains compatible with the previous `draw_id,result` format so
 existing historical data can still be read.
 
 During a session, the tracker stores an atomic checkpoint in `sessions/`; only
-completed 30-draw sessions are written to `results.txt`. A restart resumes the
-incomplete session when its next draw is still available; if all 30 draws were
+completed sessions containing all 30 required IDs are written to `results.txt`.
+A restart resumes the incomplete session and performs the same verified-history
+recovery when the next stable snapshot arrives. If all 30 results were
 captured before interruption, startup finalizes the report and results log
 without duplicating it.
 
-If the tracker misses one or more draw IDs, the incomplete session cannot be
-completed reliably. It is saved to `sessions/abandoned/` with the reason and
-first observed draw after the gap, then the tracker waits for the next valid
-`...1` session boundary instead of stopping.
+If a required draw has aged out of browser history, the session is saved under
+`sessions/incomplete/` for review and is never written to `results.txt`.
 
 ## Requirements
 
@@ -112,10 +88,6 @@ python main.py
 Test:
 
 ```bash
+pip install -r requirements-dev.txt
 python -m pytest -q
 ```
-
-Gap semantics:
-- Current gap = completed draws since the number last appeared.
-- Longest gap = longest consecutive absence run within the session.
-- A number not seen in the session has a current and longest gap equal to the session draw count.

@@ -68,17 +68,16 @@ SESSIONS_DIR.mkdir(exist_ok=True)
 # Atomic checkpoint for a session that has started but is not yet finalized.
 ACTIVE_SESSION_FILE = SESSIONS_DIR / ".active-session.json"
 
-# Incomplete sessions that miss one or more draws are retained here for audit.
-ABANDONED_SESSIONS_DIR = SESSIONS_DIR / "abandoned"
-
+# Sessions that cannot be completed because required draw IDs are no longer
+# present in the browser's verified history are kept here for review.
+INCOMPLETE_SESSIONS_DIR = SESSIONS_DIR / "incomplete"
 
 # -----------------------------------------------------
 # Session boundaries
 # -----------------------------------------------------
 
-# Sessions are defined by draw-ID position, not wall-clock time.
-# A session begins on an ID ending in 1 and ends after 30 consecutive draws,
-# with the 30th draw ending in 0. The session manager owns that state machine.
+# Sessions are defined by draw IDs, not wall-clock time. A session begins on an
+# ID ending in 1 and ends at the 30th consecutive draw ID.
 SESSION_DRAW_COUNT = 30
 
 

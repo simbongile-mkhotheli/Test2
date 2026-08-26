@@ -1,6 +1,4 @@
 import pytest
-
-from analytics.analyzers.gaps import GapAnalyzer
 from models.models import Result, Snapshot
 from models.number_domain import (
     NUMBER_BANDS,
@@ -38,11 +36,6 @@ def test_number_bands_cover_each_non_zero_valid_number_once():
 def test_zero_is_valid_but_excluded_from_the_range_trend():
     assert is_valid_number(0)
     assert number_band(0) is None
-
-
-def test_gap_analysis_rejects_invalid_captured_numbers():
-    with pytest.raises(ValueError, match="0 to 18"):
-        GapAnalyzer().analyze([0, 18, 19])
 
 
 def test_result_model_rejects_invalid_result_number():

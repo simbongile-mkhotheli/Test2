@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 
 from config import (
     ACTIVE_SESSION_FILE,
-    ABANDONED_SESSIONS_DIR,
+    INCOMPLETE_SESSIONS_DIR,
     LINE,
     RESULTS_FILE,
     SESSIONS_DIR,
@@ -68,8 +68,16 @@ class Storage:
     ) -> list[tuple[str, int]]:
         if not start_draw_id or not start_draw_id.isdigit():
             raise ValueError(f"Invalid session start draw ID: {start_draw_id!r}")
+        if start_draw_id[-1] != "1":
+            raise ValueError(
+                "Session start draw ID must end in 1: "
+                f"{start_draw_id}"
+            )
 
+        session_start = int(start_draw_id)
+        session_end = session_start + SESSION_DRAW_COUNT - 1
         validated: list[tuple[str, int]] = []
+        seen_draw_ids: set[str] = set()
         for position, row in enumerate(results):
             try:
                 draw_id, result = row
@@ -78,15 +86,18 @@ class Storage:
 
             if not isinstance(draw_id, str) or not draw_id.isdigit():
                 raise ValueError(f"Invalid draw ID at position {position}: {draw_id!r}")
-
-            if validated and int(draw_id) != int(validated[-1][0]) + 1:
+            if not session_start <= int(draw_id) <= session_end:
                 raise ValueError(
-                    "Persisted session draw IDs must be consecutive: "
-                    f"expected {int(validated[-1][0]) + 1}, got {draw_id}"
+                    f"Persisted draw {draw_id} is outside the session boundary "
+                    f"{start_draw_id}-{session_end}"
                 )
+            if draw_id in seen_draw_ids:
+                raise ValueError(f"Duplicate persisted draw ID: {draw_id}")
 
             validated.append((draw_id, validate_number(result)))
+            seen_draw_ids.add(draw_id)
 
+        validated.sort(key=lambda row: int(row[0]))
         if validated and validated[0][0] != start_draw_id:
             raise ValueError(
                 f"First persisted draw must be {start_draw_id}, got {validated[0][0]}"
@@ -146,34 +157,31 @@ class Storage:
         except FileNotFoundError:
             pass
 
-    def archive_active_session(
+    def preserve_incomplete_session(
         self,
-        reason: str,
         observed_draw_id: str,
+        missing_draw_ids: tuple[str, ...],
     ) -> Path | None:
-        """Preserve an unrecoverable partial session, then stop resuming it."""
+        """Keep an unrecoverable partial session without writing a result log."""
         checkpoint = self.load_active_session()
         if checkpoint is None:
             return None
-
         if not observed_draw_id.isdigit():
             raise ValueError(f"Invalid observed draw ID: {observed_draw_id!r}")
+        if not missing_draw_ids:
+            raise ValueError("Incomplete session must identify missing draw IDs")
 
-        last_draw_id = (
-            checkpoint.results[-1][0]
-            if checkpoint.results
-            else checkpoint.start_draw_id
-        )
-        archive_path = ABANDONED_SESSIONS_DIR / (
-            f"{checkpoint.name}-after-{last_draw_id}.json"
+        archive_path = INCOMPLETE_SESSIONS_DIR / (
+            f"{checkpoint.name}-observed-{observed_draw_id}.json"
         )
         payload = {
             "version": 1,
-            "status": "abandoned",
-            "reason": reason,
+            "status": "incomplete",
             "observed_draw_id": observed_draw_id,
+            "missing_draw_ids": list(missing_draw_ids),
             "name": checkpoint.name,
             "start_draw_id": checkpoint.start_draw_id,
+            "end_draw_id": str(int(checkpoint.start_draw_id) + SESSION_DRAW_COUNT - 1),
             "results": checkpoint.results,
         }
         self._atomic_write_text(
@@ -230,8 +238,17 @@ class Storage:
             raise ValueError(
                 f"Completed sessions must contain {SESSION_DRAW_COUNT} draws"
             )
-        if start_draw_id[-1] != "1" or validated_results[-1][0][-1] != "0":
-            raise ValueError("Completed session has invalid draw-ID boundaries")
+        if start_draw_id[-1] != "1":
+            raise ValueError("Completed session must start on a draw ID ending in 1")
+        expected_draw_ids = [
+            str(int(start_draw_id) + offset)
+            for offset in range(SESSION_DRAW_COUNT)
+        ]
+        if [draw_id for draw_id, _ in validated_results] != expected_draw_ids:
+            raise ValueError(
+                "Completed session must contain every consecutive draw ID in "
+                "its fixed session boundary"
+            )
 
         marker = f"SESSION START : {start_draw_id}"
         existing = RESULTS_FILE.read_text(encoding="utf-8")

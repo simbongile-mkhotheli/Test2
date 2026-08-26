@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-from analytics.analyzers.gaps import GapAnalyzer
-from analytics.reports.session import SessionReport
 from config import LINE
 from models.number_domain import NUMBER_BANDS, number_band
 
@@ -38,8 +36,12 @@ class SessionPresenter:
     def session_boundary_found() -> None:
         print()
 
-    def session_started(self, start_draw_id: str, draw_count: int) -> None:
-        end_draw_id = str(int(start_draw_id) + draw_count - 1)
+    def session_started(
+        self,
+        start_draw_id: str,
+        end_draw_id: str,
+        draw_count: int,
+    ) -> None:
         print()
         print(LINE)
         print(f"Started session at draw {start_draw_id}")
@@ -50,72 +52,66 @@ class SessionPresenter:
     def result_recorded(
         self,
         results: list[tuple[str, int]],
-        result: int,
     ) -> None:
-        self._print_live_gap(results, result)
         self._print_range_trend(results)
 
-    def session_abandoned(
-        self,
+    @staticmethod
+    def draws_recovered(draw_ids: tuple[str, ...]) -> None:
+        """Tell the operator which in-session rows came from verified history."""
+        print(
+            "Recovered from verified history -> "
+            + ", ".join(draw_ids)
+        )
+
+    @staticmethod
+    def session_incomplete(
         captured_count: int,
         draw_count: int,
         start_draw_id: str | None,
-        archived_path: Path | None,
+        missing_draw_ids: tuple[str, ...],
+        archive_path: Path | None,
     ) -> None:
         print(
-            "\nSession abandoned after a missed draw: "
-            f"{captured_count}/{draw_count} captured from {start_draw_id}."
+            "\nSession incomplete: required draw IDs are no longer available "
+            f"in history ({captured_count}/{draw_count} captured from "
+            f"{start_draw_id})."
         )
-        if archived_path is not None:
-            print(f"Archived incomplete session -> {archived_path}")
+        print("Missing draw IDs -> " + ", ".join(missing_draw_ids))
+        if archive_path is not None:
+            print(f"Saved incomplete session -> {archive_path}")
 
     def report(
         self,
         session_name: str,
         results: list[tuple[str, int]],
-        statistics,
     ) -> str:
-        return SessionReport(session_name, results, statistics).text()
+        lines = [LINE, "BETGAMES SESSION REPORT", LINE, f"Session: {session_name}", ""]
+        start_draw_id = results[0][0] if results else "-"
+        end_draw_id = results[-1][0] if results else "-"
+        lines.extend(
+            (
+                "SESSION",
+                "-" * 70,
+                f"Start draw : {start_draw_id}",
+                f"End draw   : {end_draw_id}",
+                f"Draw count : {len(results)}",
+                "",
+                "DRAWS",
+                "-" * 70,
+                "Pos  Draw ID             Result",
+                "---  -----------------   ------",
+            )
+        )
+        lines.extend(
+            f"{position:02d}   {draw_id:<19} {result:>6}"
+            for position, (draw_id, result) in enumerate(results, start=1)
+        )
+        lines.extend(("", LINE))
+        return "\n".join(lines)
 
     def session_finished(self, report_text: str, filename: Path) -> None:
         print(report_text)
         print(f"\nSaved session -> {filename}")
-
-    @staticmethod
-    def live_gap(results: list[tuple[str, int]], number: int) -> int:
-        return GapAnalyzer.current_gap([value for _, value in results], number)
-
-    @staticmethod
-    def live_last_gap(results: list[tuple[str, int]], number: int) -> int | None:
-        return GapAnalyzer.last_gap([value for _, value in results], number)
-
-    @staticmethod
-    def _ordinal(number: int) -> str:
-        if 10 <= number % 100 <= 20:
-            suffix = "th"
-        else:
-            suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
-        return f"{number}{suffix}"
-
-    def _print_live_gap(self, results: list[tuple[str, int]], number: int) -> None:
-        numbers = [value for _, value in results]
-        positions = [
-            index
-            for index, value in enumerate(numbers)
-            if value == number
-        ]
-        if len(positions) < 2:
-            return
-
-        gaps = [
-            positions[index] - positions[index - 1] - 1
-            for index in range(1, len(positions))
-        ]
-        gap_text = " | ".join(
-            f"{self._ordinal(index)} gap: {gap}"
-            for index, gap in enumerate(gaps, start=1)
-        )
-        print(f"Live gap | Number {number:>2} | {gap_text}")
 
     @staticmethod
     def _range_counts(results: list[tuple[str, int]]) -> tuple[int, ...]:

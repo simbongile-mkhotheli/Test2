@@ -15,7 +15,7 @@ Responsibilities
 from time import sleep
 from traceback import format_exc
 
-from exceptions import RecoverableError, SessionGap
+from exceptions import RecoverableError
 from tracker.frame_finder import FrameFinder
 from tracker.game_reader import GameReader
 from utils.logger import Logger
@@ -93,8 +93,9 @@ class Tracker:
 
                     self._remember_snapshot(snapshot)
                     self.session.start(snapshot.draw_id)
-                    self.session.add_result(snapshot.draw_id, snapshot.latest)
-                    self._log_result(snapshot)
+                    update = self.session.add_snapshot(snapshot)
+                    if update.captured_current_draw:
+                        self._log_result(snapshot)
 
                 except RecoverableError as ex:
                     Logger.warning(str(ex))
@@ -102,7 +103,8 @@ class Tracker:
                     continue
 
             # --------------------------------------------------
-            # ACTIVE: collect exactly 30 consecutive draws.
+            # ACTIVE: collect the fixed 30 draw IDs, recovering short
+            # interruptions from verified newest-first browser history.
             # --------------------------------------------------
 
             while self.session.is_running():
@@ -114,21 +116,25 @@ class Tracker:
                     )
                     self._remember_snapshot(snapshot)
 
-                    self.session.add_result(
-                        snapshot.draw_id,
-                        snapshot.latest,
-                    )
-                    self._log_result(snapshot)
+                    update = self.session.add_snapshot(snapshot)
+                    if update.captured_current_draw:
+                        self._log_result(snapshot)
 
-                    # The third ...0 boundary is the 30th draw.
                     if self.session.is_complete():
                         self.session.finish()
                         break
 
-                except SessionGap as ex:
-                    Logger.warning(str(ex))
-                    self.session.abandon(str(ex), ex.observed_draw_id)
-                    break
+                    if update.unavailable_draw_ids:
+                        Logger.warning(
+                            "Required draw IDs are no longer available in "
+                            "the verified browser history: "
+                            + ", ".join(update.unavailable_draw_ids)
+                        )
+                        self.session.preserve_incomplete(
+                            snapshot.draw_id,
+                            update.unavailable_draw_ids,
+                        )
+                        break
 
                 except RecoverableError as ex:
                     Logger.warning(str(ex))
