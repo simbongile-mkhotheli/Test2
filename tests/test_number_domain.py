@@ -6,6 +6,7 @@ from models.number_domain import (
     is_valid_number,
     number_band,
     number_counts,
+    range_counts,
     validate_number,
 )
 from storage.storage import Storage
@@ -46,6 +47,16 @@ def test_number_counts_include_zero_and_all_domain_values():
     assert counts[6] == 1
     assert counts[18] == 1
     assert counts[1] == 0
+
+
+def test_range_counts_exclude_zero_and_group_each_non_zero_value_once():
+    counts = range_counts([0, 1, 6, 7, 12, 13, 18])
+
+    assert counts == {
+        "1-6": 2,
+        "7-12": 2,
+        "13-18": 2,
+    }
 
 
 def test_result_model_rejects_invalid_result_number():

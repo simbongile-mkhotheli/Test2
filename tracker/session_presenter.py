@@ -3,7 +3,13 @@
 from pathlib import Path
 
 from config import LINE
-from models.number_domain import NUMBER_BANDS, NUMBER_VALUES, number_band, number_counts
+from models.number_domain import (
+    NUMBER_BANDS,
+    NUMBER_VALUES,
+    number_band,
+    number_counts,
+    range_counts,
+)
 
 
 class SessionPresenter:
@@ -56,14 +62,6 @@ class SessionPresenter:
         self._print_range_trend(results)
 
     @staticmethod
-    def draws_recovered(draw_ids: tuple[str, ...]) -> None:
-        """Tell the operator which in-session rows came from verified history."""
-        print(
-            "Recovered from verified history -> "
-            + ", ".join(draw_ids)
-        )
-
-    @staticmethod
     def session_incomplete(
         captured_count: int,
         draw_count: int,
@@ -72,8 +70,8 @@ class SessionPresenter:
         archive_path: Path | None,
     ) -> None:
         print(
-            "\nSession incomplete: required draw IDs are no longer available "
-            f"in history ({captured_count}/{draw_count} captured from "
+            "\nSession incomplete: required draw IDs were not captured "
+            f"({captured_count}/{draw_count} captured from "
             f"{start_draw_id})."
         )
         print("Missing draw IDs -> " + ", ".join(missing_draw_ids))
@@ -113,7 +111,19 @@ class SessionPresenter:
             f"{number:>6} | {counts[number]:>5}"
             for number in NUMBER_VALUES
         )
-        lines.extend(("", f"Total  | {len(results):>5}", LINE))
+        lines.extend(("", f"Total  | {len(results):>5}", "", "RANGE COUNTS", "-" * 70))
+        lines.extend(
+            (
+                "Range | Count",
+                "------+------",
+            )
+        )
+        range_totals = range_counts(result for _, result in results)
+        lines.extend(
+            f"{label:<5} | {range_totals[label]:>5}"
+            for label, _ in NUMBER_BANDS
+        )
+        lines.append(LINE)
         return "\n".join(lines)
 
     def session_finished(self, report_text: str, filename: Path) -> None:
@@ -122,11 +132,7 @@ class SessionPresenter:
 
     @staticmethod
     def _range_counts(results: list[tuple[str, int]]) -> tuple[int, ...]:
-        counts = {label: 0 for label, _ in NUMBER_BANDS}
-        for _, value in results:
-            band = number_band(value)
-            if band is not None:
-                counts[band] += 1
+        counts = range_counts(value for _, value in results)
         return tuple(counts[label] for label, _ in NUMBER_BANDS)
 
     def _print_range_trend(self, results: list[tuple[str, int]]) -> None:

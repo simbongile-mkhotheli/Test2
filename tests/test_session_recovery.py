@@ -24,6 +24,7 @@ def test_session_manager_resumes_interrupted_partial_session(tmp_path, monkeypat
     assert manager.start_draw_id == "12608180151"
     assert manager.results == results
     assert manager.last_draw_id() == "12608180152"
+    assert manager.last_history() is None
 
 
 def test_session_manager_finalizes_completed_checkpoint_on_startup(tmp_path, monkeypatch):
@@ -63,7 +64,7 @@ def test_session_manager_continues_a_restored_session_after_skipped_draw_ids(
     ]
 
 
-def test_session_manager_backfills_a_missing_draw_from_a_verified_snapshot(
+def test_session_manager_records_only_the_current_draw_from_a_verified_snapshot(
     tmp_path,
     monkeypatch,
 ):
@@ -83,15 +84,12 @@ def test_session_manager_backfills_a_missing_draw_from_a_verified_snapshot(
         )
     )
 
-    assert update.recovered_draw_ids == ("12608260587",)
     assert update.captured_current_draw
-    assert manager.results[-2:] == [
-        ("12608260587", 17),
-        ("12608260588", 8),
-    ]
+    assert manager.results[-1] == ("12608260588", 8)
+    assert "12608260587" in manager.missing_draw_ids
 
 
-def test_restored_session_backfills_a_missing_draw_from_the_next_snapshot(
+def test_restored_session_keeps_missing_ids_missing_without_draw_id_history(
     tmp_path,
     monkeypatch,
 ):
@@ -111,12 +109,12 @@ def test_restored_session_backfills_a_missing_draw_from_the_next_snapshot(
         )
     )
 
-    assert update.recovered_draw_ids == ("12608260587",)
-    assert manager.results[-3:] == [
-        ("12608260587", 17),
+    assert update.captured_current_draw
+    assert manager.results[-2:] == [
         ("12608260588", 8),
         ("12608260589", 4),
     ]
+    assert "12608260587" in manager.missing_draw_ids
 
 
 def test_session_manager_preserves_an_unrecoverable_partial_session(
@@ -148,11 +146,7 @@ def test_session_manager_preserves_an_unrecoverable_partial_session(
     )
 
     assert update.unavailable_draw_ids == (
-        "12608260587",
-        "12608260588",
-        "12608260589",
-        "12608260590",
-        "12608260591",
+        *(str(draw_id) for draw_id in range(12608260587, 12608260601)),
     )
     assert archive is not None
     assert archive.exists()

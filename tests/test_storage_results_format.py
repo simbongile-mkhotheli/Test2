@@ -66,7 +66,12 @@ def test_active_session_checkpoint_is_recoverable(tmp_path, monkeypatch):
         ("12608180151", 15),
         ("12608180152", 16),
     ]
-    storage.checkpoint_session("draw-12608180151", "12608180151", results)
+    storage.checkpoint_session(
+        "draw-12608180151",
+        "12608180151",
+        results,
+        (16, 15, 14),
+    )
 
     recovered = storage.load_active_session()
 
@@ -74,6 +79,7 @@ def test_active_session_checkpoint_is_recoverable(tmp_path, monkeypatch):
     assert recovered.name == "draw-12608180151"
     assert recovered.start_draw_id == "12608180151"
     assert recovered.results == results
+    assert recovered.last_history == (16, 15, 14)
 
 
 def test_partial_checkpoint_can_preserve_missing_draw_ids_for_later_recovery(
@@ -127,6 +133,10 @@ def test_completed_session_log_is_atomic_and_idempotent(tmp_path, monkeypatch):
     assert "RESULT COUNTS" in text
     assert "     0 |     2" in text
     assert "Total  |    30" in text
+    assert "RANGE COUNTS" in text
+    assert "1-6   |    12" in text
+    assert "7-12  |    10" in text
+    assert "13-18 |     6" in text
 
 
 def test_live_results_append_each_new_draw_without_duplicates(tmp_path, monkeypatch):
@@ -170,5 +180,7 @@ def test_incomplete_live_session_is_closed_with_its_counts(tmp_path, monkeypatch
     assert "     0 |     1" in text
     assert "    15 |     1" in text
     assert "Total  |     2" in text
+    assert "RANGE COUNTS" in text
+    assert "13-18 |     1" in text
     assert "Missing draw IDs : 12608180153" in text
     assert "SESSION INCOMPLETE" in text

@@ -13,8 +13,9 @@ at a draw ID ending in `1` and contains the next 30 consecutive IDs. For
 example, a session beginning at `12608260571` must end at `12608260600`.
 
 The tracker can be launched at any time. It ignores draws until the next valid
-`...1` boundary. If it observes a later draw, it uses the verified
-newest-first browser history to backfill any required IDs still present there.
+`...1` boundary. The compact browser history is used to verify that a result
+has rolled in, but it is not used to assign values to older draw IDs because
+the website does not expose IDs for those history entries.
 
 ## Runtime
 
@@ -56,8 +57,9 @@ SESSION END
 ```
 
 Each completed section in `results.txt` and every detailed session report
-includes a `RESULT COUNTS` table for values `0` through `18`, plus the total
-recorded draws.
+includes a `RESULT COUNTS` table for values `0` through `18`, plus a `RANGE
+COUNTS` table for `1–6`, `7–12`, and `13–18`. Zero remains a valid result but
+is not included in a range count.
 
 During a session, the tracker stores an atomic checkpoint in `sessions/`. A
 restart synchronizes any checkpointed rows that were not yet written to
@@ -65,9 +67,10 @@ restart synchronizes any checkpointed rows that were not yet written to
 before interruption, startup finalizes the report and completes the live-log
 section.
 
-If a required draw has aged out of browser history, the session is saved under
-`sessions/incomplete/` for review. Its live-log section is marked
-`SESSION INCOMPLETE` and includes the captured-result counts and missing IDs.
+If any required draw ID was not captured by the end of the 30-draw session,
+the session is saved under `sessions/incomplete/` for review. Its live-log
+section is marked `SESSION INCOMPLETE` and includes the captured-result counts
+and missing IDs.
 
 ## Requirements
 

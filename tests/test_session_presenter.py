@@ -34,3 +34,6 @@ def test_presenter_builds_the_final_report():
     assert "     0 |     1" in report
     assert "    15 |     2" in report
     assert "Total  |     3" in report
+    assert "RANGE COUNTS" in report
+    assert "1-6   |     0" in report
+    assert "13-18 |     2" in report

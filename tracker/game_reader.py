@@ -70,7 +70,7 @@ class GameReader:
     # -------------------------------------------------
 
     def history(self):
-        """Return compact results in newest-first order for draw-ID recovery."""
+        """Return compact newest-first results used to verify a new draw."""
 
         container = self.game.locator('[data-qa="last-results-compact"]')
 
@@ -118,6 +118,19 @@ class GameReader:
 
         return True
 
+    @staticmethod
+    def history_advanced(
+        history: list[int],
+        previous_history: tuple[int, ...],
+    ) -> bool:
+        """Return whether a newest-first history advanced by one result."""
+        comparison_length = min(len(history) - 1, len(previous_history))
+        if comparison_length <= 0:
+            return True
+        return tuple(history[1: 1 + comparison_length]) == previous_history[
+            :comparison_length
+        ]
+
     # -------------------------------------------------
     # DOM Stability
     # -------------------------------------------------
@@ -126,13 +139,15 @@ class GameReader:
         self,
         expected_draw: str,
         previous_history: tuple[int, ...] | None,
+        previous_draw: str = "",
     ) -> Snapshot | None:
         """
         Return a verified snapshot for ``expected_draw``.
 
-        The draw ID must match the detected draw, and its result history must
-        differ from the previous draw before it can be accepted. Three matching
-        reads prevent storing data from an in-progress React update.
+        The draw ID must match the detected draw. For consecutive draw IDs, the
+        newest-first history must shift by exactly one result before the
+        snapshot can be accepted. Three matching reads prevent storing data
+        from an in-progress React update.
         """
         previous_signature = None
         stable_reads = 0
@@ -160,6 +175,19 @@ class GameReader:
             if (
                 previous_history is not None
                 and tuple(snap.history) == previous_history
+            ):
+                sleep(DRAW_POLL_INTERVAL)
+
+                continue
+
+            is_consecutive_draw = (
+                previous_draw.isdigit()
+                and int(expected_draw) == int(previous_draw) + 1
+            )
+            if (
+                previous_history is not None
+                and is_consecutive_draw
+                and not self.history_advanced(snap.history, previous_history)
             ):
                 sleep(DRAW_POLL_INTERVAL)
 
@@ -207,6 +235,7 @@ class GameReader:
                     snapshot = self.stable_snapshot(
                         current_draw,
                         previous_history,
+                        previous_draw,
                     )
                     if snapshot is not None:
                         return snapshot

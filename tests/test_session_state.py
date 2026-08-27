@@ -27,49 +27,62 @@ def test_state_accepts_new_observed_draw_ids_after_a_skip():
     ]
 
 
-def test_state_recovers_a_missing_draw_from_newest_first_history():
+def test_state_never_assigns_an_older_history_value_to_a_draw_id():
     state = SessionState(draw_count=30)
     start = 12608260571
     state.start(str(start))
     state.commit_results([(str(start + offset), 1) for offset in range(16)])
 
-    proposed = state.proposed_results_from_history(
+    proposed = state.proposed_result_from_snapshot(
         "12608260588",
         [8, 17, *([1] * 8)],
     )
 
     assert proposed is not None
-    assert dict(proposed)["12608260587"] == 17
     assert dict(proposed)["12608260588"] == 8
-    assert len(proposed) == 18
+    assert "12608260587" not in dict(proposed)
+    assert len(proposed) == 17
 
 
-def test_state_marks_only_aged_out_missing_draws_as_unrecoverable():
+def test_later_history_values_cannot_overwrite_a_checkpointed_draw():
+    state = SessionState(draw_count=30)
+    start = 12608270881
+    state.start(str(start))
+    state.commit_results(
+        [
+            (str(start + offset), 8 if offset == 9 else 1)
+            for offset in range(10)
+        ]
+    )
+
+    proposed = state.proposed_result_from_snapshot(
+        "12608270891",
+        [15, 14, 8, *([1] * 7)],
+    )
+
+    assert proposed is not None
+    assert dict(proposed)["12608270890"] == 8
+    assert dict(proposed)["12608270891"] == 15
+
+
+def test_state_marks_all_missing_draws_as_incomplete_at_session_end():
     state = SessionState(draw_count=30)
     start = 12608260571
     state.start(str(start))
     state.commit_results([(str(start + offset), 1) for offset in range(16)])
 
-    assert state.unrecoverable_missing_draw_ids("12608260601", 10) == (
-        "12608260587",
-        "12608260588",
-        "12608260589",
-        "12608260590",
-        "12608260591",
+    assert state.incomplete_missing_draw_ids("12608260601") == (
+        *(str(draw_id) for draw_id in range(12608260587, 12608260601)),
     )
 
 
-def test_state_rejects_history_that_disagrees_with_a_saved_draw():
+def test_state_keeps_the_first_checkpointed_value_for_a_duplicate_draw():
     state = SessionState(draw_count=30)
     state.start("12608260571")
     state.commit_results([("12608260571", 3)])
 
-    try:
-        state.proposed_results_from_history("12608260571", [4])
-    except ValueError as error:
-        assert "disagrees" in str(error)
-    else:
-        raise AssertionError("conflicting history was accepted")
+    assert state.proposed_result_from_snapshot("12608260571", [4]) is None
+    assert state.results == [("12608260571", 3)]
 
 
 def test_state_completion_depends_on_the_configured_capture_count():

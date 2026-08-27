@@ -69,8 +69,9 @@ RESULTS_FILE = BASE_DIR / "results.txt"
 # Atomic checkpoint for a session that has started but is not yet finalized.
 ACTIVE_SESSION_FILE = SESSIONS_DIR / ".active-session.json"
 
-# Sessions that cannot be completed because required draw IDs are no longer
-# present in the browser's verified history are kept here for review.
+# Sessions that cannot be completed because required draw IDs were missed are
+# kept here for review. The browser's compact history has no draw IDs, so it
+# cannot safely reconstruct them after an interruption.
 INCOMPLETE_SESSIONS_DIR = SESSIONS_DIR / "incomplete"
 
 # -----------------------------------------------------

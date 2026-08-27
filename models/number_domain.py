@@ -45,6 +45,16 @@ def number_counts(values: Iterable[object]) -> dict[int, int]:
     return counts
 
 
+def range_counts(values: Iterable[object]) -> dict[str, int]:
+    """Count valid non-zero results in the configured display ranges."""
+    counts = {label: 0 for label, _ in NUMBER_BANDS}
+    for value in values:
+        band = number_band(value)
+        if band is not None:
+            counts[band] += 1
+    return counts
+
+
 def number_band(value: object) -> str | None:
     """Return a range-trend band, or None when the valid result is zero."""
     number = validate_number(value)

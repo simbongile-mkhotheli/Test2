@@ -15,7 +15,13 @@ from config import (
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
 )
-from models.number_domain import NUMBER_VALUES, number_counts, validate_number
+from models.number_domain import (
+    NUMBER_BANDS,
+    NUMBER_VALUES,
+    number_counts,
+    range_counts,
+    validate_number,
+)
 
 
 _DRAW_LINE_RE = re.compile(r"^\s*(\d{1,3})\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
@@ -29,6 +35,7 @@ class ActiveSession:
     name: str
     start_draw_id: str
     results: list[tuple[str, int]]
+    last_history: tuple[int, ...] | None
 
 
 class Storage:
@@ -61,6 +68,17 @@ class Storage:
             if temporary_path is not None and temporary_path.exists():
                 temporary_path.unlink()
             raise
+
+    @staticmethod
+    def _validated_history(
+        history: tuple[int, ...] | list[int] | None,
+    ) -> list[int] | None:
+        """Validate optional browser history retained for restart verification."""
+        if history is None:
+            return None
+        if not isinstance(history, (tuple, list)):
+            raise ValueError("Persisted browser history must be a list of results")
+        return [validate_number(result) for result in history]
 
     @staticmethod
     def _validated_session_rows(
@@ -152,14 +170,17 @@ class Storage:
         session_name: str,
         start_draw_id: str,
         results: list[tuple[str, int]],
+        last_history: tuple[int, ...] | list[int] | None = None,
     ) -> None:
         """Atomically save the active session after each accepted draw."""
         validated_results = self._validated_results(results, start_draw_id)
+        validated_history = self._validated_history(last_history)
         payload = {
             "version": 1,
             "name": session_name,
             "start_draw_id": start_draw_id,
             "results": validated_results,
+            "last_history": validated_history,
         }
         self._atomic_write_text(
             ACTIVE_SESSION_FILE,
@@ -182,6 +203,7 @@ class Storage:
         session_name = payload.get("name")
         start_draw_id = payload.get("start_draw_id")
         raw_results = payload.get("results")
+        raw_history = payload.get("last_history")
         if not isinstance(session_name, str) or not isinstance(raw_results, list):
             raise ValueError("Active session checkpoint is missing required fields")
 
@@ -190,6 +212,11 @@ class Storage:
             name=session_name,
             start_draw_id=start_draw_id,
             results=results,
+            last_history=(
+                tuple(self._validated_history(raw_history))
+                if raw_history is not None
+                else None
+            ),
         )
 
     def clear_active_session(self) -> None:
@@ -204,7 +231,7 @@ class Storage:
         observed_draw_id: str,
         missing_draw_ids: tuple[str, ...],
     ) -> Path | None:
-        """Keep an unrecoverable partial session without writing a result log."""
+        """Keep an incomplete partial session without deleting its live log."""
         checkpoint = self.load_active_session()
         if checkpoint is None:
             return None
@@ -235,7 +262,7 @@ class Storage:
 
     @staticmethod
     def _result_count_lines(results: list[tuple[str, int]]) -> list[str]:
-        """Render the completed-session frequency table for the live log."""
+        """Render number and range frequency tables for the live log."""
         counts = number_counts(result for _, result in results)
         lines = ["RESULT COUNTS", "Number | Count", "-------+------"]
         lines.extend(
@@ -243,6 +270,12 @@ class Storage:
             for number in NUMBER_VALUES
         )
         lines.append(f"Total  | {len(results):>5}")
+        lines.extend(("", "RANGE COUNTS", "Range | Count", "------+------"))
+        range_totals = range_counts(result for _, result in results)
+        lines.extend(
+            f"{label:<5} | {range_totals[label]:>5}"
+            for label, _ in NUMBER_BANDS
+        )
         return lines
 
     def append_live_results(

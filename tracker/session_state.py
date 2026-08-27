@@ -47,7 +47,7 @@ class SessionState:
 
     @property
     def missing_draw_ids(self) -> tuple[str, ...]:
-        """Return required draw IDs not yet recovered or captured."""
+        """Return required draw IDs that have not been captured."""
         known = {draw_id for draw_id, _ in self.results}
         return tuple(
             draw_id for draw_id in self.expected_draw_ids if draw_id not in known
@@ -86,53 +86,39 @@ class SessionState:
         """Add one directly captured result without mutating this instance."""
         return self._proposed_results_for_candidates(((draw_id, result),))
 
-    def proposed_results_from_history(
+    def proposed_result_from_snapshot(
         self,
         observed_draw_id: str,
         history: Sequence[int],
     ) -> list[tuple[str, int]] | None:
-        """Map verified newest-first history to draw IDs and merge session rows.
+        """Accept the observed draw without assigning IDs to old history rows.
 
-        A stable game snapshot associates ``history[0]`` with its draw ID,
-        ``history[1]`` with the immediately previous draw ID, and so on. Only
-        IDs inside this session's fixed boundary are considered.
+        The compact browser history exposes result values but not their draw
+        IDs. Its older entries therefore cannot safely be backfilled into a
+        draw-ID-aligned session. The caller uses history only to verify that a
+        result rolled in for ``observed_draw_id``.
         """
         if not observed_draw_id or not observed_draw_id.isdigit():
             raise ValueError(f"Invalid observed draw ID: {observed_draw_id!r}")
         if not history:
-            raise ValueError("Cannot recover results from an empty history")
+            raise ValueError("Cannot accept a snapshot with empty history")
 
-        observed_number = int(observed_draw_id)
-        candidates = tuple(
-            (str(observed_number - offset), result)
-            for offset, result in enumerate(history)
-        )
-        return self._proposed_results_for_candidates(candidates)
+        return self.proposed_results(observed_draw_id, history[0])
 
-    def unrecoverable_missing_draw_ids(
-        self,
-        observed_draw_id: str,
-        history_count: int,
-    ) -> tuple[str, ...]:
-        """Return missing IDs that have aged out of the observed history.
+    def incomplete_missing_draw_ids(self, observed_draw_id: str) -> tuple[str, ...]:
+        """Return missing IDs once the fixed session window has ended.
 
-        The test is only meaningful once the game reaches the session's final
-        ID. Later snapshots can never include an older row than the one
-        already outside the newest-first history window.
+        Browser history lacks draw IDs, so it cannot repair a missing row
+        safely. Once the end ID is observed, any remaining required draw IDs
+        make the session incomplete.
         """
         if not observed_draw_id or not observed_draw_id.isdigit():
             raise ValueError(f"Invalid observed draw ID: {observed_draw_id!r}")
-        if history_count <= 0 or self.end_draw_id is None:
+        if self.end_draw_id is None:
             return ()
         if int(observed_draw_id) < int(self.end_draw_id):
             return ()
-
-        earliest_available = int(observed_draw_id) - history_count + 1
-        return tuple(
-            draw_id
-            for draw_id in self.missing_draw_ids
-            if int(draw_id) < earliest_available
-        )
+        return self.missing_draw_ids
 
     def _proposed_results_for_candidates(
         self,
@@ -163,10 +149,10 @@ class SessionState:
                 merged[draw_id] = result
                 changed = True
             elif known_result != result:
-                raise ValueError(
-                    "Verified history disagrees with the stored result for "
-                    f"draw {draw_id}: expected {known_result}, got {result}"
-                )
+                # Preserve the first stable, checkpointed value for this draw.
+                # A later browser repaint must never overwrite it or crash the
+                # tracker; the reader only passes newly observed draw IDs.
+                continue
 
         if not changed:
             return None

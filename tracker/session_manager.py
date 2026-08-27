@@ -1,4 +1,4 @@
-"""Coordinate session state, persistence, browser-history recovery, and output."""
+"""Coordinate session state, persistence, browser verification, and output."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +15,6 @@ class SnapshotIngest:
 
     observed_draw_id: str
     accepted_draw_ids: tuple[str, ...]
-    recovered_draw_ids: tuple[str, ...]
     unavailable_draw_ids: tuple[str, ...]
 
     @property
@@ -30,6 +29,7 @@ class SessionManager:
         self.storage = Storage()
         self.state = SessionState(SESSION_DRAW_COUNT)
         self.presenter = SessionPresenter()
+        self._last_history: tuple[int, ...] | None = None
         self._restore_active_session()
 
     # Compatibility properties retained for the tracker and existing callers.
@@ -84,6 +84,7 @@ class SessionManager:
             checkpoint.start_draw_id,
             checkpoint.results,
         )
+        self._last_history = checkpoint.last_history
         self.storage.append_live_results(
             checkpoint.start_draw_id,
             checkpoint.results,
@@ -134,6 +135,7 @@ class SessionManager:
             self.session_name,
             start_draw_id,
             self.results,
+            self._last_history,
         )
         self.presenter.reset()
         self.presenter.session_started(
@@ -143,9 +145,9 @@ class SessionManager:
         )
 
     def add_snapshot(self, snapshot) -> SnapshotIngest:
-        """Merge one verified snapshot and backfill in-window history rows."""
+        """Store one verified snapshot under its own draw ID."""
         known_draw_ids = {draw_id for draw_id, _ in self.results}
-        updated_results = self.state.proposed_results_from_history(
+        updated_results = self.state.proposed_result_from_snapshot(
             snapshot.draw_id,
             snapshot.history,
         )
@@ -156,37 +158,26 @@ class SessionManager:
                 self.session_name,
                 self.start_draw_id or "",
                 updated_results,
+                tuple(snapshot.history),
             )
             self.storage.append_live_results(
                 self.start_draw_id or "",
                 updated_results,
             )
             self.state.commit_results(updated_results)
+            self._last_history = tuple(snapshot.history)
             accepted_draw_ids = tuple(
                 draw_id
                 for draw_id, _ in self.results
                 if draw_id not in known_draw_ids
             )
 
-            recovered_draw_ids = tuple(
-                draw_id
-                for draw_id in accepted_draw_ids
-                if draw_id != snapshot.draw_id
-            )
-            if recovered_draw_ids:
-                self.presenter.draws_recovered(recovered_draw_ids)
             self.presenter.result_recorded(self.results)
-        else:
-            recovered_draw_ids = ()
 
-        unavailable_draw_ids = self.state.unrecoverable_missing_draw_ids(
-            snapshot.draw_id,
-            len(snapshot.history),
-        )
+        unavailable_draw_ids = self.state.incomplete_missing_draw_ids(snapshot.draw_id)
         return SnapshotIngest(
             observed_draw_id=snapshot.draw_id,
             accepted_draw_ids=accepted_draw_ids,
-            recovered_draw_ids=recovered_draw_ids,
             unavailable_draw_ids=unavailable_draw_ids,
         )
 
@@ -200,6 +191,7 @@ class SessionManager:
             self.session_name,
             self.start_draw_id or "",
             updated_results,
+            self._last_history,
         )
         self.storage.append_live_results(
             self.start_draw_id or "",
@@ -230,6 +222,7 @@ class SessionManager:
             missing_draw_ids,
         )
         self.state.clear()
+        self._last_history = None
         self.presenter.reset()
         self.presenter.session_incomplete(
             captured_count,
@@ -259,6 +252,7 @@ class SessionManager:
         self.storage.append_completed_session(self.results)
         self.storage.clear_active_session()
         self.state.clear()
+        self._last_history = None
         self.presenter.reset()
         self.presenter.session_finished(report_text, filename)
 
@@ -267,6 +261,10 @@ class SessionManager:
 
     def last_draw_id(self) -> str:
         return self.state.last_draw_id()
+
+    def last_history(self) -> tuple[int, ...] | None:
+        """Return the checkpointed history fingerprint for restart safety."""
+        return self._last_history
 
     def is_running(self) -> bool:
         return self.running

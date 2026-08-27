@@ -31,7 +31,7 @@ class Tracker:
         self.reader = None
         self.session = SessionManager()
         self.last_round = self.session.last_draw_id()
-        self.last_history: tuple[int, ...] | None = None
+        self.last_history = self.session.last_history()
 
     # --------------------------------------------------
 
@@ -103,8 +103,8 @@ class Tracker:
                     continue
 
             # --------------------------------------------------
-            # ACTIVE: collect the fixed 30 draw IDs, recovering short
-            # interruptions from verified newest-first browser history.
+            # ACTIVE: collect the fixed 30 draw IDs. Browser history verifies
+            # that a new result rolled in, but cannot identify older draw IDs.
             # --------------------------------------------------
 
             while self.session.is_running():

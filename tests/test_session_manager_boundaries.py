@@ -39,7 +39,7 @@ def test_session_ends_only_after_every_required_draw_id_is_present(tmp_path, mon
     assert manager.is_complete()
 
 
-def test_session_keeps_a_partial_session_until_a_missing_draw_is_recovered(
+def test_session_keeps_a_partial_session_when_a_draw_id_is_missing(
     tmp_path,
     monkeypatch,
 ):
