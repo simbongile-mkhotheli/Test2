@@ -17,7 +17,9 @@ from config import (
 )
 from models.number_domain import (
     NUMBER_BANDS,
+    NUMBER_COLORS,
     NUMBER_VALUES,
+    color_counts,
     number_counts,
     range_counts,
     validate_number,
@@ -262,7 +264,7 @@ class Storage:
 
     @staticmethod
     def _result_count_lines(results: list[tuple[str, int]]) -> list[str]:
-        """Render number and range frequency tables for the live log."""
+        """Render number, range, and color frequency tables for the live log."""
         counts = number_counts(result for _, result in results)
         lines = ["RESULT COUNTS", "Number | Count", "-------+------"]
         lines.extend(
@@ -275,6 +277,12 @@ class Storage:
         lines.extend(
             f"{label:<5} | {range_totals[label]:>5}"
             for label, _ in NUMBER_BANDS
+        )
+        lines.extend(("", "COLOR COUNTS", "Color | Count", "------+------"))
+        color_totals = color_counts(result for _, result in results)
+        lines.extend(
+            f"{label:<5} | {color_totals[label]:>5}"
+            for label, _ in NUMBER_COLORS
         )
         return lines
 

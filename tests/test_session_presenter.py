@@ -37,6 +37,10 @@ def test_presenter_builds_the_final_report():
     assert "RANGE COUNTS" in report
     assert "1-6   |     0" in report
     assert "13-18 |     2" in report
+    assert "COLOR COUNTS" in report
+    assert "Black |     0" in report
+    assert "Gray  |     0" in report
+    assert "Red   |     2" in report
 
 
 def test_presenter_alerts_once_when_a_range_is_absent_for_more_than_nine_draws(

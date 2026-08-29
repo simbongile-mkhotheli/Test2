@@ -137,6 +137,10 @@ def test_completed_session_log_is_atomic_and_idempotent(tmp_path, monkeypatch):
     assert "1-6   |    12" in text
     assert "7-12  |    10" in text
     assert "13-18 |     6" in text
+    assert "COLOR COUNTS" in text
+    assert "Black |    10" in text
+    assert "Gray  |     9" in text
+    assert "Red   |     9" in text
 
 
 def test_live_results_append_each_new_draw_without_duplicates(tmp_path, monkeypatch):
@@ -182,5 +186,7 @@ def test_incomplete_live_session_is_closed_with_its_counts(tmp_path, monkeypatch
     assert "Total  |     2" in text
     assert "RANGE COUNTS" in text
     assert "13-18 |     1" in text
+    assert "COLOR COUNTS" in text
+    assert "Red   |     1" in text
     assert "Missing draw IDs : 12608180153" in text
     assert "SESSION INCOMPLETE" in text

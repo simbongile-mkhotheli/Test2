@@ -5,7 +5,9 @@ from pathlib import Path
 from config import LINE, RANGE_ABSENCE_ALERT_AFTER
 from models.number_domain import (
     NUMBER_BANDS,
+    NUMBER_COLORS,
     NUMBER_VALUES,
+    color_counts,
     number_counts,
     range_absence_streaks,
     range_counts,
@@ -127,6 +129,14 @@ class SessionPresenter:
             f"{label:<5} | {range_totals[label]:>5}"
             for label, _ in NUMBER_BANDS
         )
+        lines.extend(
+            ("", "COLOR COUNTS", "-" * 70, "Color | Count", "------+------")
+        )
+        color_totals = color_counts(result for _, result in results)
+        lines.extend(
+            f"{label:<5} | {color_totals[label]:>5}"
+            for label, _ in NUMBER_COLORS
+        )
         lines.append(LINE)
         return "\n".join(lines)
 
@@ -142,6 +152,10 @@ class SessionPresenter:
     @staticmethod
     def _range_absence_streaks(results: list[tuple[str, int]]) -> dict[str, int]:
         return range_absence_streaks(value for _, value in results)
+
+    @staticmethod
+    def _color_counts(results: list[tuple[str, int]]) -> dict[str, int]:
+        return color_counts(value for _, value in results)
 
     def _print_range_absence_alerts(self, results: list[tuple[str, int]]) -> None:
         """Alert once when a range first exceeds the absence threshold."""
@@ -184,3 +198,8 @@ class SessionPresenter:
         print("RANGE TREND")
         for index, (label, _) in enumerate(NUMBER_BANDS):
             print(f"{label:<6} {sparkline(index):<9}     COUNT: {counts[index]:02d}")
+
+        print("COLOR COUNTS")
+        color_totals = self._color_counts(results)
+        for label, _ in NUMBER_COLORS:
+            print(f"{label:<6}                     COUNT: {color_totals[label]:02d}")

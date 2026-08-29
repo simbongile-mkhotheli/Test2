@@ -15,6 +15,13 @@ NUMBER_BANDS: tuple[tuple[str, range], ...] = (
     ("13-18", range(13, 19)),
 )
 
+# Zero is not assigned a color. Every non-zero result belongs to one color.
+NUMBER_COLORS: tuple[tuple[str, range], ...] = (
+    ("Black", range(1, 19, 3)),
+    ("Gray", range(2, 19, 3)),
+    ("Red", range(3, 19, 3)),
+)
+
 
 def is_valid_number(value: object) -> bool:
     """Return whether *value* is a valid game result number."""
@@ -72,10 +79,29 @@ def range_absence_streaks(values: Iterable[object]) -> dict[str, int]:
     return streaks
 
 
+def color_counts(values: Iterable[object]) -> dict[str, int]:
+    """Count valid non-zero results in the configured color groups."""
+    counts = {label: 0 for label, _ in NUMBER_COLORS}
+    for value in values:
+        color = number_color(value)
+        if color is not None:
+            counts[color] += 1
+    return counts
+
+
 def number_band(value: object) -> str | None:
     """Return a range-trend band, or None when the valid result is zero."""
     number = validate_number(value)
     for label, values in NUMBER_BANDS:
+        if number in values:
+            return label
+    return None
+
+
+def number_color(value: object) -> str | None:
+    """Return a result color, or None when the valid result is zero."""
+    number = validate_number(value)
+    for label, values in NUMBER_COLORS:
         if number in values:
             return label
     return None

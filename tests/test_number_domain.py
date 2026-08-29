@@ -2,9 +2,12 @@ import pytest
 from models.models import Result, Snapshot
 from models.number_domain import (
     NUMBER_BANDS,
+    NUMBER_COLORS,
     NUMBER_VALUES,
+    color_counts,
     is_valid_number,
     number_band,
+    number_color,
     number_counts,
     range_absence_streaks,
     range_counts,
@@ -67,6 +70,31 @@ def test_range_absence_streaks_reset_only_for_the_observed_range():
         "1-6": 5,
         "7-12": 2,
         "13-18": 1,
+    }
+
+
+def test_color_groups_cover_each_non_zero_valid_number_once():
+    membership_count = {
+        number: sum(number in color for _, color in NUMBER_COLORS)
+        for number in range(1, 19)
+    }
+
+    assert membership_count == {number: 1 for number in range(1, 19)}
+    assert number_color(0) is None
+    assert number_color(1) == "Black"
+    assert number_color(2) == "Gray"
+    assert number_color(3) == "Red"
+
+
+def test_color_counts_follow_the_configured_number_mapping():
+    counts = color_counts(
+        [0, 1, 4, 7, 10, 13, 16, 2, 5, 8, 11, 14, 17, 3, 6, 9, 12, 15, 18]
+    )
+
+    assert counts == {
+        "Black": 6,
+        "Gray": 6,
+        "Red": 6,
     }
 
 

@@ -59,7 +59,9 @@ SESSION END
 Each completed section in `results.txt` and every detailed session report
 includes a `RESULT COUNTS` table for values `0` through `18`, plus a `RANGE
 COUNTS` table for `1–6`, `7–12`, and `13–18`. Zero remains a valid result but
-is not included in a range count.
+is not included in a range count. It also includes `COLOR COUNTS`: Black
+(`1, 4, 7, 10, 13, 16`), Gray (`2, 5, 8, 11, 14, 17`), and Red
+(`3, 6, 9, 12, 15, 18`). Zero is not assigned a color.
 
 The console prints a `RANGE ALERT` once when a range has not appeared for more
 than 9 consecutive captured draws. This means the alert triggers at 10
