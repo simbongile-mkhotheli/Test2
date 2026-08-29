@@ -2,11 +2,12 @@
 
 from pathlib import Path
 
-from config import LINE, RANGE_ABSENCE_ALERT_AFTER
+from config import ABSENCE_ALERT_AFTER, LINE
 from models.number_domain import (
     NUMBER_BANDS,
     NUMBER_COLORS,
     NUMBER_VALUES,
+    color_absence_streaks,
     color_counts,
     number_counts,
     range_absence_streaks,
@@ -22,6 +23,7 @@ class SessionPresenter:
     def __init__(self):
         self._range_trend_history: list[tuple[int, ...]] = []
         self._alerted_absent_ranges: set[str] = set()
+        self._alerted_absent_colors: set[str] = set()
 
     def restore(self, results: list[tuple[str, int]]) -> None:
         """Rebuild display-only trend history after a checkpoint restore."""
@@ -29,10 +31,12 @@ class SessionPresenter:
         for index in range(1, len(results) + 1):
             self._range_trend_history.append(self._range_counts(results[:index]))
         self._print_range_absence_alerts(results)
+        self._print_color_absence_alerts(results)
 
     def reset(self) -> None:
         self._range_trend_history = []
         self._alerted_absent_ranges = set()
+        self._alerted_absent_colors = set()
 
     def waiting_for_session(self) -> None:
         print()
@@ -66,6 +70,7 @@ class SessionPresenter:
     ) -> None:
         self._print_range_trend(results)
         self._print_range_absence_alerts(results)
+        self._print_color_absence_alerts(results)
 
     @staticmethod
     def session_incomplete(
@@ -154,26 +159,53 @@ class SessionPresenter:
         return range_absence_streaks(value for _, value in results)
 
     @staticmethod
+    def _color_absence_streaks(results: list[tuple[str, int]]) -> dict[str, int]:
+        return color_absence_streaks(value for _, value in results)
+
+    @staticmethod
     def _color_counts(results: list[tuple[str, int]]) -> dict[str, int]:
         return color_counts(value for _, value in results)
 
     def _print_range_absence_alerts(self, results: list[tuple[str, int]]) -> None:
         """Alert once when a range first exceeds the absence threshold."""
-        streaks = self._range_absence_streaks(results)
-        for label, _ in NUMBER_BANDS:
+        self._print_absence_alerts(
+            "RANGE",
+            NUMBER_BANDS,
+            self._range_absence_streaks(results),
+            self._alerted_absent_ranges,
+        )
+
+    def _print_color_absence_alerts(self, results: list[tuple[str, int]]) -> None:
+        """Alert once when a color first exceeds the absence threshold."""
+        self._print_absence_alerts(
+            "COLOR",
+            NUMBER_COLORS,
+            self._color_absence_streaks(results),
+            self._alerted_absent_colors,
+        )
+
+    @staticmethod
+    def _print_absence_alerts(
+        alert_type: str,
+        groups: tuple[tuple[str, range], ...],
+        streaks: dict[str, int],
+        alerted_groups: set[str],
+    ) -> None:
+        """Print a one-time alert for each group that crosses the threshold."""
+        for label, _ in groups:
             streak = streaks[label]
             if streak == 0:
-                self._alerted_absent_ranges.discard(label)
+                alerted_groups.discard(label)
                 continue
             if (
-                streak > RANGE_ABSENCE_ALERT_AFTER
-                and label not in self._alerted_absent_ranges
+                streak > ABSENCE_ALERT_AFTER
+                and label not in alerted_groups
             ):
                 print(
-                    f"RANGE ALERT | {label} has not appeared for {streak} "
+                    f"{alert_type} ALERT | {label} has not appeared for {streak} "
                     "consecutive draws."
                 )
-                self._alerted_absent_ranges.add(label)
+                alerted_groups.add(label)
 
     def _print_range_trend(self, results: list[tuple[str, int]]) -> None:
         counts = self._range_counts(results)

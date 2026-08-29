@@ -41,11 +41,11 @@ SNAPSHOT_STABLE_READS = 3
 
 
 # -----------------------------------------------------
-# Range alerts
+# Absence alerts
 # -----------------------------------------------------
 
-# Alert after a range has been absent for more than this many draws.
-RANGE_ABSENCE_ALERT_AFTER = 9
+# Alert after a range or color has been absent for more than this many draws.
+ABSENCE_ALERT_AFTER = 9
 
 
 # -----------------------------------------------------

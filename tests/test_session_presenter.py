@@ -72,7 +72,32 @@ def test_presenter_reports_an_existing_absence_alert_after_restore(capsys):
 
     restore_output = capsys.readouterr().out
     assert "RANGE ALERT | 1-6 has not appeared for 10 consecutive draws." in restore_output
+    assert "COLOR ALERT | Black has not appeared for 10 consecutive draws." in restore_output
 
     presenter.result_recorded([*results, ("12608180161", 0)])
 
-    assert "RANGE ALERT" not in capsys.readouterr().out
+    next_output = capsys.readouterr().out
+    assert "RANGE ALERT" not in next_output
+    assert "COLOR ALERT" not in next_output
+
+
+def test_presenter_alerts_once_when_a_color_is_absent_for_more_than_nine_draws(
+    capsys,
+):
+    presenter = SessionPresenter()
+    first_nine = [(str(12608180151 + index), 0) for index in range(9)]
+    tenth = [*first_nine, ("12608180160", 0)]
+
+    presenter.result_recorded(first_nine)
+    assert "COLOR ALERT" not in capsys.readouterr().out
+
+    presenter.result_recorded(tenth)
+    alert_output = capsys.readouterr().out
+    for color in ("Black", "Gray", "Red"):
+        assert (
+            f"COLOR ALERT | {color} has not appeared for 10 consecutive draws."
+            in alert_output
+        )
+
+    presenter.result_recorded([*tenth, ("12608180161", 0)])
+    assert "COLOR ALERT" not in capsys.readouterr().out

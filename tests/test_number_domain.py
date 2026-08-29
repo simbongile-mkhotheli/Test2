@@ -4,6 +4,7 @@ from models.number_domain import (
     NUMBER_BANDS,
     NUMBER_COLORS,
     NUMBER_VALUES,
+    color_absence_streaks,
     color_counts,
     is_valid_number,
     number_band,
@@ -95,6 +96,16 @@ def test_color_counts_follow_the_configured_number_mapping():
         "Black": 6,
         "Gray": 6,
         "Red": 6,
+    }
+
+
+def test_color_absence_streaks_reset_only_for_the_observed_color():
+    streaks = color_absence_streaks([1, 0, 2, 5, 3, 0])
+
+    assert streaks == {
+        "Black": 5,
+        "Gray": 2,
+        "Red": 1,
     }
 
 

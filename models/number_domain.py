@@ -1,6 +1,6 @@
 """Authoritative Wheel of Fortune result-number domain."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 
 NUMBER_MIN = 0
@@ -68,11 +68,29 @@ def range_absence_streaks(values: Iterable[object]) -> dict[str, int]:
     A zero is a valid game result but belongs to no range, so it extends the
     absence streak of all three display ranges.
     """
-    streaks = {label: 0 for label, _ in NUMBER_BANDS}
+    return _group_absence_streaks(values, NUMBER_BANDS, number_band)
+
+
+def color_absence_streaks(values: Iterable[object]) -> dict[str, int]:
+    """Return current consecutive-absence lengths for every result color.
+
+    A zero is a valid game result but belongs to no color, so it extends the
+    absence streak of Black, Gray, and Red.
+    """
+    return _group_absence_streaks(values, NUMBER_COLORS, number_color)
+
+
+def _group_absence_streaks(
+    values: Iterable[object],
+    groups: tuple[tuple[str, range], ...],
+    classify: Callable[[object], str | None],
+) -> dict[str, int]:
+    """Return trailing absence lengths for a configured set of groups."""
+    streaks = {label: 0 for label, _ in groups}
     for value in values:
-        observed_band = number_band(value)
-        for label, _ in NUMBER_BANDS:
-            if label == observed_band:
+        observed_group = classify(value)
+        for label, _ in groups:
+            if label == observed_group:
                 streaks[label] = 0
             else:
                 streaks[label] += 1

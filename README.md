@@ -63,12 +63,12 @@ is not included in a range count. It also includes `COLOR COUNTS`: Black
 (`1, 4, 7, 10, 13, 16`), Gray (`2, 5, 8, 11, 14, 17`), and Red
 (`3, 6, 9, 12, 15, 18`). Zero is not assigned a color.
 
-The console prints a `RANGE ALERT` once when a range has not appeared for more
-than 9 consecutive captured draws. This means the alert triggers at 10
-consecutive draws without that range. The alert resets after that range appears
-again, and an ongoing alert is shown again when a partial session is restored.
-Zero extends the absence streak of every range because it is outside all three
-ranges.
+The console prints a `RANGE ALERT` or `COLOR ALERT` once when a range or color
+has not appeared for more than 9 consecutive captured draws. This means the
+alert triggers at 10 consecutive draws without that group. The alert resets
+after the group appears again, and an ongoing alert is shown again when a
+partial session is restored. Zero extends every range and color absence streak
+because it is outside all three ranges and colors.
 
 During a session, the tracker stores an atomic checkpoint in `sessions/`. A
 restart synchronizes any checkpointed rows that were not yet written to
