@@ -45,7 +45,7 @@ SNAPSHOT_STABLE_READS = 3
 # -----------------------------------------------------
 
 # Alert after a range has been absent for more than this many draws.
-RANGE_ABSENCE_ALERT_AFTER = 10
+RANGE_ABSENCE_ALERT_AFTER = 9
 
 
 # -----------------------------------------------------
