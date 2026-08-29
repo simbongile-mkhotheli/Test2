@@ -61,6 +61,12 @@ includes a `RESULT COUNTS` table for values `0` through `18`, plus a `RANGE
 COUNTS` table for `1–6`, `7–12`, and `13–18`. Zero remains a valid result but
 is not included in a range count.
 
+The console prints a `RANGE ALERT` once when a range has not appeared for more
+than 10 consecutive captured draws. The alert resets after that range appears
+again, and an ongoing alert is shown again when a partial session is restored.
+Zero extends the absence streak of every range because it is outside all three
+ranges.
+
 During a session, the tracker stores an atomic checkpoint in `sessions/`. A
 restart synchronizes any checkpointed rows that were not yet written to
 `results.txt`, without duplicating them. If all 30 required IDs were captured

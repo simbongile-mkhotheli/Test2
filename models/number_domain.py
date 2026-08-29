@@ -55,6 +55,23 @@ def range_counts(values: Iterable[object]) -> dict[str, int]:
     return counts
 
 
+def range_absence_streaks(values: Iterable[object]) -> dict[str, int]:
+    """Return current consecutive-absence lengths for every display range.
+
+    A zero is a valid game result but belongs to no range, so it extends the
+    absence streak of all three display ranges.
+    """
+    streaks = {label: 0 for label, _ in NUMBER_BANDS}
+    for value in values:
+        observed_band = number_band(value)
+        for label, _ in NUMBER_BANDS:
+            if label == observed_band:
+                streaks[label] = 0
+            else:
+                streaks[label] += 1
+    return streaks
+
+
 def number_band(value: object) -> str | None:
     """Return a range-trend band, or None when the valid result is zero."""
     number = validate_number(value)

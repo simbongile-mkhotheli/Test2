@@ -37,3 +37,38 @@ def test_presenter_builds_the_final_report():
     assert "RANGE COUNTS" in report
     assert "1-6   |     0" in report
     assert "13-18 |     2" in report
+
+
+def test_presenter_alerts_once_when_a_range_is_absent_for_more_than_ten_draws(
+    capsys,
+):
+    presenter = SessionPresenter()
+    first_ten = [(str(12608180151 + index), 0) for index in range(10)]
+    eleven = [*first_ten, ("12608180161", 0)]
+
+    presenter.result_recorded(first_ten)
+    assert "RANGE ALERT" not in capsys.readouterr().out
+
+    presenter.result_recorded(eleven)
+    alert_output = capsys.readouterr().out
+    for label in ("1-6", "7-12", "13-18"):
+        assert (
+            f"RANGE ALERT | {label} has not appeared for 11 consecutive draws."
+            in alert_output
+        )
+
+    presenter.result_recorded([*eleven, ("12608180162", 0)])
+    assert "RANGE ALERT" not in capsys.readouterr().out
+
+
+def test_presenter_reports_an_existing_absence_alert_after_restore(capsys):
+    results = [(str(12608180151 + index), 0) for index in range(11)]
+    presenter = SessionPresenter()
+    presenter.restore(results)
+
+    restore_output = capsys.readouterr().out
+    assert "RANGE ALERT | 1-6 has not appeared for 11 consecutive draws." in restore_output
+
+    presenter.result_recorded([*results, ("12608180162", 0)])
+
+    assert "RANGE ALERT" not in capsys.readouterr().out

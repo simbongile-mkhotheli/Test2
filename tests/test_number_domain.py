@@ -6,6 +6,7 @@ from models.number_domain import (
     is_valid_number,
     number_band,
     number_counts,
+    range_absence_streaks,
     range_counts,
     validate_number,
 )
@@ -56,6 +57,16 @@ def test_range_counts_exclude_zero_and_group_each_non_zero_value_once():
         "1-6": 2,
         "7-12": 2,
         "13-18": 2,
+    }
+
+
+def test_range_absence_streaks_reset_only_for_the_observed_range():
+    streaks = range_absence_streaks([1, 0, 7, 12, 13, 0])
+
+    assert streaks == {
+        "1-6": 5,
+        "7-12": 2,
+        "13-18": 1,
     }
 
 
