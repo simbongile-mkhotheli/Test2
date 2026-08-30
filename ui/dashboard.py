@@ -35,7 +35,7 @@ class Dashboard:
 
         self.root = tk.Tk()
         self.root.title("BetGames Tracker")
-        self.root.minsize(1040, 740)
+        self.root.minsize(900, 560)
         self.root.protocol("WM_DELETE_WINDOW", self._close)
 
         self._connection_var = tk.StringVar(value="Starting browser…")
@@ -58,8 +58,25 @@ class Dashboard:
         self.root.mainloop()
 
     def _build(self) -> None:
-        container = ttk.Frame(self.root, padding=16)
-        container.grid(sticky="nsew")
+        self._canvas = tk.Canvas(self.root, highlightthickness=0)
+        self._canvas.grid(row=0, column=0, sticky="nsew")
+        dashboard_scrollbar = ttk.Scrollbar(
+            self.root,
+            orient="vertical",
+            command=self._canvas.yview,
+        )
+        dashboard_scrollbar.grid(row=0, column=1, sticky="ns")
+        self._canvas.configure(yscrollcommand=dashboard_scrollbar.set)
+
+        container = ttk.Frame(self._canvas, padding=16)
+        self._canvas_window = self._canvas.create_window(
+            (0, 0),
+            window=container,
+            anchor="nw",
+        )
+        container.bind("<Configure>", self._update_dashboard_scroll_region)
+        self._canvas.bind("<Configure>", self._resize_dashboard_content)
+
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
@@ -197,6 +214,19 @@ class Dashboard:
         activity.rowconfigure(0, weight=1)
         self._activity = tk.Text(activity, height=8, state="disabled", wrap="word")
         self._activity.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(
+            activity,
+            orient="vertical",
+            command=self._activity.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self._activity.configure(yscrollcommand=scrollbar.set)
+
+    def _update_dashboard_scroll_region(self, _event: tk.Event[tk.Misc]) -> None:
+        self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+
+    def _resize_dashboard_content(self, event: tk.Event[tk.Misc]) -> None:
+        self._canvas.itemconfigure(self._canvas_window, width=event.width)
 
     def _poll_events(self) -> None:
         if self._closing:
