@@ -12,24 +12,32 @@ Responsibilities
 - Recover if the page reloads
 """
 
-from time import sleep
+from threading import Event
 from traceback import format_exc
 
-from exceptions import RecoverableError
+from exceptions import RecoverableError, TrackerStopped
 from tracker.frame_finder import FrameFinder
 from tracker.game_reader import GameReader
 from utils.logger import Logger
 from tracker.session_manager import SessionManager
+from ui.events import EventBus
 
 
 class Tracker:
 
-    def __init__(self, page):
+    def __init__(
+        self,
+        page,
+        events: EventBus | None = None,
+        stop_event: Event | None = None,
+    ):
 
         self.page = page
+        self.events = events
+        self.stop_event = stop_event or Event()
         self.frame = None
         self.reader = None
-        self.session = SessionManager()
+        self.session = SessionManager(events)
         self.last_round = self.session.last_draw_id()
         self.last_history = self.session.last_history()
 
@@ -38,10 +46,11 @@ class Tracker:
     def connect(self):
 
         finder = FrameFinder(self.page)
-        self.frame = finder.find()
+        self.frame = finder.find(should_stop=self.stop_event.is_set)
         self.reader = GameReader(self.frame)
 
         Logger.success("Connected")
+        self._publish("connected")
 
     # --------------------------------------------------
 
@@ -49,14 +58,16 @@ class Tracker:
 
         delay = 1
 
-        while True:
+        while not self.stop_event.is_set():
             try:
                 self.connect()
-                return
+                return True
             except RecoverableError:
                 Logger.warning(f"Reconnect failed. Retry in {delay}s")
-                sleep(delay)
+                if self.stop_event.wait(delay):
+                    break
                 delay = min(delay * 2, 30)
+        return False
 
     # --------------------------------------------------
 
@@ -72,79 +83,92 @@ class Tracker:
 
     # --------------------------------------------------
 
+    def _publish(self, kind: str, **payload: object) -> None:
+        if self.events is not None:
+            self.events.publish(kind, **payload)
+
+    # --------------------------------------------------
+
     def run(self):
+        self._publish("tracking_started")
+        try:
+            self.connect()
 
-        self.connect()
+            while not self.stop_event.is_set():
 
-        while True:
+                # --------------------------------------------------
+                # WAITING: application may start at any time. We only begin
+                # when the next draw ID ends in 1.
+                # --------------------------------------------------
 
-            # --------------------------------------------------
-            # WAITING: application may start at any time. We only begin
-            # when the next draw ID ends in 1.
-            # --------------------------------------------------
-
-            if not self.session.is_running():
-                try:
-                    snapshot = self.session.wait_for_next_session(
-                        self.reader,
-                        self.last_round,
-                        self.last_history,
-                    )
-
-                    self._remember_snapshot(snapshot)
-                    self.session.start(snapshot.draw_id)
-                    update = self.session.add_snapshot(snapshot)
-                    if update.captured_current_draw:
-                        self._log_result(snapshot)
-
-                except RecoverableError as ex:
-                    Logger.warning(str(ex))
-                    self.reconnect()
-                    continue
-
-            # --------------------------------------------------
-            # ACTIVE: collect the fixed 30 draw IDs. Browser history verifies
-            # that a new result rolled in, but cannot identify older draw IDs.
-            # --------------------------------------------------
-
-            while self.session.is_running():
-
-                try:
-                    snapshot = self.reader.wait_for_new_draw(
-                        self.last_round,
-                        self.last_history,
-                    )
-                    self._remember_snapshot(snapshot)
-
-                    update = self.session.add_snapshot(snapshot)
-                    if update.captured_current_draw:
-                        self._log_result(snapshot)
-
-                    if self.session.is_complete():
-                        self.session.finish()
-                        break
-
-                    if update.unavailable_draw_ids:
-                        Logger.warning(
-                            "Required draw IDs are no longer available in "
-                            "the verified browser history: "
-                            + ", ".join(update.unavailable_draw_ids)
+                if not self.session.is_running():
+                    try:
+                        snapshot = self.session.wait_for_next_session(
+                            self.reader,
+                            self.last_round,
+                            self.last_history,
+                            self.stop_event.is_set,
                         )
-                        self.session.preserve_incomplete(
-                            snapshot.draw_id,
-                            update.unavailable_draw_ids,
+
+                        self._remember_snapshot(snapshot)
+                        self.session.start(snapshot.draw_id)
+                        update = self.session.add_snapshot(snapshot)
+                        if update.captured_current_draw:
+                            self._log_result(snapshot)
+
+                    except RecoverableError as ex:
+                        Logger.warning(str(ex))
+                        if not self.reconnect():
+                            break
+                        continue
+
+                # --------------------------------------------------
+                # ACTIVE: collect the fixed 30 draw IDs. Browser history verifies
+                # that a new result rolled in, but cannot identify older draw IDs.
+                # --------------------------------------------------
+
+                while self.session.is_running() and not self.stop_event.is_set():
+
+                    try:
+                        snapshot = self.reader.wait_for_new_draw(
+                            self.last_round,
+                            self.last_history,
+                            self.stop_event.is_set,
                         )
-                        break
+                        self._remember_snapshot(snapshot)
 
-                except RecoverableError as ex:
-                    Logger.warning(str(ex))
-                    self.reconnect()
+                        update = self.session.add_snapshot(snapshot)
+                        if update.captured_current_draw:
+                            self._log_result(snapshot)
 
-                except KeyboardInterrupt:
-                    print("\nStopping tracker...")
-                    return
+                        if self.session.is_complete():
+                            self.session.finish()
+                            break
 
-                except Exception:
-                    Logger.error("Fatal programming error")
-                    Logger.error(format_exc())
-                    raise
+                        if update.unavailable_draw_ids:
+                            Logger.warning(
+                                "Required draw IDs are no longer available in "
+                                "the verified browser history: "
+                                + ", ".join(update.unavailable_draw_ids)
+                            )
+                            self.session.preserve_incomplete(
+                                snapshot.draw_id,
+                                update.unavailable_draw_ids,
+                            )
+                            break
+
+                    except RecoverableError as ex:
+                        Logger.warning(str(ex))
+                        if not self.reconnect():
+                            break
+
+        except TrackerStopped:
+            Logger.info("Tracking stopped.")
+        except KeyboardInterrupt:
+            Logger.info("Tracking stopped.")
+        except Exception:
+            Logger.error("Fatal programming error")
+            Logger.error(format_exc())
+            raise
+        finally:
+            self._publish("tracker_stopped")

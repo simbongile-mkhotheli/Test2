@@ -27,7 +27,7 @@ from config import (
     TIMER_SELECTOR,
 )
 
-from exceptions import DOMChanged, SnapshotTimeout
+from exceptions import DOMChanged, SnapshotTimeout, TrackerStopped
 from models.models import Snapshot
 from models.number_domain import is_valid_number
 
@@ -140,6 +140,7 @@ class GameReader:
         expected_draw: str,
         previous_history: tuple[int, ...] | None,
         previous_draw: str = "",
+        should_stop=None,
     ) -> Snapshot | None:
         """
         Return a verified snapshot for ``expected_draw``.
@@ -154,6 +155,8 @@ class GameReader:
         started_at = monotonic()
 
         while True:
+            if should_stop is not None and should_stop():
+                raise TrackerStopped()
             if monotonic() - started_at >= SNAPSHOT_STABILITY_TIMEOUT:
                 raise SnapshotTimeout(
                     f"Snapshot for draw {expected_draw} did not stabilize within "
@@ -219,6 +222,7 @@ class GameReader:
         self,
         previous_draw: str,
         previous_history: tuple[int, ...] | None = None,
+        should_stop=None,
     ) -> Snapshot:
         """
         Blocks until a new draw appears.
@@ -229,6 +233,8 @@ class GameReader:
 
         while True:
             try:
+                if should_stop is not None and should_stop():
+                    raise TrackerStopped()
                 current_draw = self.draw_id()
 
                 if current_draw and current_draw != previous_draw:
@@ -236,6 +242,7 @@ class GameReader:
                         current_draw,
                         previous_history,
                         previous_draw,
+                        should_stop,
                     )
                     if snapshot is not None:
                         return snapshot

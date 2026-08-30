@@ -48,6 +48,10 @@ class GameNotLoaded(RecoverableError):
     pass
 
 
+class TrackerStopped(TrackerError):
+    """Raised internally when the dashboard asks the worker to stop."""
+
+
 # ----------------------------------------------------
 # Fatal
 # ----------------------------------------------------

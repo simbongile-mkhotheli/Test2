@@ -1,7 +1,7 @@
 import pytest
 
 import tracker.game_reader as game_reader_module
-from exceptions import SnapshotTimeout
+from exceptions import SnapshotTimeout, TrackerStopped
 from models.models import Snapshot
 from tracker.game_reader import GameReader
 
@@ -74,8 +74,9 @@ def test_wait_for_new_draw_retries_when_the_observed_draw_advances(monkeypatch):
 
     reader.draw_id = lambda: next(observed_draws)
 
-    def stable_snapshot(expected_draw, previous_history, previous_draw):
+    def stable_snapshot(expected_draw, previous_history, previous_draw, should_stop):
         attempted_draws.append((expected_draw, previous_history, previous_draw))
+        assert should_stop is None
         return None if expected_draw.endswith("51") else verified_snapshot
 
     reader.stable_snapshot = stable_snapshot
@@ -86,3 +87,13 @@ def test_wait_for_new_draw_retries_when_the_observed_draw_advances(monkeypatch):
         ("12608180151", (1,) * 10, "12608180150"),
         ("12608180152", (1,) * 10, "12608180150"),
     ]
+
+
+def test_wait_for_new_draw_honors_a_dashboard_stop_request():
+    reader = GameReader.__new__(GameReader)
+
+    with pytest.raises(TrackerStopped):
+        reader.wait_for_new_draw(
+            "12608180151",
+            should_stop=lambda: True,
+        )

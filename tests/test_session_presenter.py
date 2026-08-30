@@ -1,21 +1,36 @@
 from tracker.session_presenter import SessionPresenter
+from ui.events import EventBus
 
 
-def test_presenter_rebuilds_range_trend_history_when_restoring():
-    presenter = SessionPresenter()
+def alert_messages(events: EventBus) -> list[str]:
+    return [
+        event.payload["message"]
+        for event in events.drain()
+        if event.kind == "alert"
+    ]
+
+
+def test_presenter_publishes_restored_checkpoint_state_for_the_dashboard():
+    events = EventBus()
+    presenter = SessionPresenter(events)
     presenter.restore(
         [
             ("12608180151", 0),
             ("12608180152", 5),
             ("12608180153", 14),
-        ]
+        ],
+        "draw-12608180151",
     )
 
-    assert presenter._range_trend_history == [
-        (0, 0, 0),
-        (1, 0, 0),
-        (1, 0, 1),
-    ]
+    updates = [event for event in events.drain() if event.kind == "session_update"]
+
+    assert len(updates) == 1
+    assert updates[0].payload["session_name"] == "draw-12608180151"
+    assert updates[0].payload["results"] == (
+        ("12608180151", 0),
+        ("12608180152", 5),
+        ("12608180153", 14),
+    )
 
 
 def test_presenter_builds_the_final_report():
@@ -44,60 +59,86 @@ def test_presenter_builds_the_final_report():
 
 
 def test_presenter_alerts_once_when_a_range_is_absent_for_more_than_nine_draws(
-    capsys,
 ):
-    presenter = SessionPresenter()
+    events = EventBus()
+    presenter = SessionPresenter(events)
     first_nine = [(str(12608180151 + index), 0) for index in range(9)]
     tenth = [*first_nine, ("12608180160", 0)]
 
     presenter.result_recorded(first_nine)
-    assert "RANGE ALERT" not in capsys.readouterr().out
+    assert not alert_messages(events)
 
     presenter.result_recorded(tenth)
-    alert_output = capsys.readouterr().out
+    alert_output = alert_messages(events)
     for label in ("1-6", "7-12", "13-18"):
-        assert (
-            f"RANGE ALERT | {label} has not appeared for 10 consecutive draws."
-            in alert_output
-        )
+        assert f"RANGE ALERT | {label} has not appeared for 10 consecutive draws." in alert_output
 
     presenter.result_recorded([*tenth, ("12608180161", 0)])
-    assert "RANGE ALERT" not in capsys.readouterr().out
+    assert not alert_messages(events)
 
 
-def test_presenter_reports_an_existing_absence_alert_after_restore(capsys):
+def test_presenter_reports_an_existing_absence_alert_after_restore():
     results = [(str(12608180151 + index), 0) for index in range(10)]
-    presenter = SessionPresenter()
+    events = EventBus()
+    presenter = SessionPresenter(events)
     presenter.restore(results)
 
-    restore_output = capsys.readouterr().out
-    assert "RANGE ALERT | 1-6 has not appeared for 10 consecutive draws." in restore_output
-    assert "COLOR ALERT | Black has not appeared for 10 consecutive draws." in restore_output
+    restore_alerts = alert_messages(events)
+    assert "RANGE ALERT | 1-6 has not appeared for 10 consecutive draws." in restore_alerts
+    assert "COLOR ALERT | Black has not appeared for 10 consecutive draws." in restore_alerts
 
     presenter.result_recorded([*results, ("12608180161", 0)])
 
-    next_output = capsys.readouterr().out
-    assert "RANGE ALERT" not in next_output
-    assert "COLOR ALERT" not in next_output
+    assert not alert_messages(events)
 
 
 def test_presenter_alerts_once_when_a_color_is_absent_for_more_than_nine_draws(
-    capsys,
 ):
-    presenter = SessionPresenter()
+    events = EventBus()
+    presenter = SessionPresenter(events)
     first_nine = [(str(12608180151 + index), 0) for index in range(9)]
     tenth = [*first_nine, ("12608180160", 0)]
 
     presenter.result_recorded(first_nine)
-    assert "COLOR ALERT" not in capsys.readouterr().out
+    assert not alert_messages(events)
 
     presenter.result_recorded(tenth)
-    alert_output = capsys.readouterr().out
+    alert_output = alert_messages(events)
     for color in ("Black", "Gray", "Red"):
-        assert (
-            f"COLOR ALERT | {color} has not appeared for 10 consecutive draws."
-            in alert_output
-        )
+        assert f"COLOR ALERT | {color} has not appeared for 10 consecutive draws." in alert_output
 
     presenter.result_recorded([*tenth, ("12608180161", 0)])
-    assert "COLOR ALERT" not in capsys.readouterr().out
+    assert not alert_messages(events)
+
+
+def test_presenter_publishes_session_counts_for_the_dashboard():
+    events = EventBus()
+    presenter = SessionPresenter(events)
+    presenter.session_started("draw-12608180151", "12608180151", "12608180180", 30)
+    presenter.result_recorded(
+        [
+            ("12608180151", 1),
+            ("12608180152", 2),
+            ("12608180153", 3),
+        ]
+    )
+
+    updates = [event for event in events.drain() if event.kind == "session_update"]
+
+    assert len(updates) == 1
+    assert updates[0].payload["range_counts"] == {
+        "1-6": 3,
+        "7-12": 0,
+        "13-18": 0,
+    }
+    assert updates[0].payload["number_counts"] == {
+        **{number: 0 for number in range(19)},
+        1: 1,
+        2: 1,
+        3: 1,
+    }
+    assert updates[0].payload["color_counts"] == {
+        "Black": 1,
+        "Gray": 1,
+        "Red": 1,
+    }

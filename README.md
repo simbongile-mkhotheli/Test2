@@ -21,13 +21,14 @@ the website does not expose IDs for those history entries.
 
 ```text
 main.py
-  -> Tracker
+  -> Dashboard (Tkinter, main thread)
+  -> Tracker worker (Playwright thread)
       -> FrameFinder
       -> GameReader
       -> SessionManager (orchestration)
           -> SessionState (session rules and state)
           -> Storage
-          -> SessionPresenter
+          -> SessionPresenter -> EventBus -> Dashboard
 ```
 
 Game results are integers from `0` through `18`. Invalid values are rejected
@@ -63,12 +64,22 @@ is not included in a range count. It also includes `COLOR COUNTS`: Black
 (`1, 4, 7, 10, 13, 16`), Gray (`2, 5, 8, 11, 14, 17`), and Red
 (`3, 6, 9, 12, 15, 18`). Zero is not assigned a color.
 
-The console prints a `RANGE ALERT` or `COLOR ALERT` once when a range or color
-has not appeared for more than 9 consecutive captured draws. This means the
-alert triggers at 10 consecutive draws without that group. The alert resets
-after the group appears again, and an ongoing alert is shown again when a
-partial session is restored. Zero extends every range and color absence streak
-because it is outside all three ranges and colors.
+The desktop dashboard shows range and color alerts once when a group has not
+appeared for more than 9 consecutive captured draws. This means the alert
+triggers at 10 consecutive draws without that group. The alert resets after
+the group appears again, and an ongoing alert is shown again when a partial
+session is restored. Zero extends every range and color absence streak because
+it is outside all three ranges and colors.
+
+## Desktop dashboard
+
+Run `python main.py` to open the dashboard and the Playwright browser. Open
+Wheel Of Fortune in that browser, then click **Start tracking** in the
+dashboard. The application displays the connection status, current session,
+latest draw, recent draw table, number, range, and color counts, plus alerts,
+without requiring terminal output. Click **Stop** or close the dashboard to
+safely stop the tracking worker; the persisted session checkpoint remains
+available for resume.
 
 During a session, the tracker stores an atomic checkpoint in `sessions/`. A
 restart synchronizes any checkpointed rows that were not yet written to
@@ -86,6 +97,7 @@ and missing IDs.
 - Python 3.11+
 - Playwright
 - Chromium
+- Tkinter (bundled with the standard Windows Python installer)
 
 Install:
 

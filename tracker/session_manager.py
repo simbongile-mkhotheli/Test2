@@ -7,6 +7,7 @@ from config import SESSION_DRAW_COUNT
 from storage.storage import Storage
 from tracker.session_presenter import SessionPresenter
 from tracker.session_state import SessionState
+from ui.events import EventBus
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,10 +26,10 @@ class SnapshotIngest:
 class SessionManager:
     """Application coordinator for one draw-ID-aligned tracking session."""
 
-    def __init__(self):
+    def __init__(self, events: EventBus | None = None):
         self.storage = Storage()
         self.state = SessionState(SESSION_DRAW_COUNT)
-        self.presenter = SessionPresenter()
+        self.presenter = SessionPresenter(events)
         self._last_history: tuple[int, ...] | None = None
         self._restore_active_session()
 
@@ -89,7 +90,7 @@ class SessionManager:
             checkpoint.start_draw_id,
             checkpoint.results,
         )
-        self.presenter.restore(self.results)
+        self.presenter.restore(self.results, checkpoint.name)
         if self.is_complete():
             self.finish()
 
@@ -109,6 +110,7 @@ class SessionManager:
         reader,
         previous_draw: str = "",
         previous_history: tuple[int, ...] | None = None,
+        should_stop=None,
     ):
         """Wait for a verified snapshot at the next ``...1`` boundary."""
         self.presenter.waiting_for_session()
@@ -116,7 +118,11 @@ class SessionManager:
         last_history = previous_history
 
         while True:
-            snapshot = reader.wait_for_new_draw(last_draw, last_history)
+            snapshot = reader.wait_for_new_draw(
+                last_draw,
+                last_history,
+                should_stop,
+            )
             last_draw = snapshot.draw_id
             last_history = tuple(snapshot.history)
             self.presenter.waiting_draw(
@@ -139,6 +145,7 @@ class SessionManager:
         )
         self.presenter.reset()
         self.presenter.session_started(
+            self.session_name,
             start_draw_id,
             self.end_draw_id or "",
             SESSION_DRAW_COUNT,

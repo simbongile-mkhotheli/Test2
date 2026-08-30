@@ -10,7 +10,8 @@ from time import sleep
 
 from playwright.sync_api import Error as PlaywrightError
 
-from exceptions import FrameNotFound
+from exceptions import FrameNotFound, TrackerStopped
+from utils.logger import Logger
 
 from config import (
     GAME_CONTAINER,
@@ -26,7 +27,7 @@ class FrameFinder:
     def __init__(self, page):
         self.page = page
 
-    def find(self, timeout=30):
+    def find(self, timeout=30, should_stop=None):
         """
         Search every Playwright frame until we find
         the one containing the game.
@@ -37,11 +38,14 @@ class FrameFinder:
         """
 
         if SHOW_RECONNECTS:
-            print("Searching for Wheel Of Fortune...")
+            Logger.info("Searching for Wheel Of Fortune...")
 
         start = monotonic()
 
         while True:
+
+            if should_stop is not None and should_stop():
+                raise TrackerStopped()
 
             for frame in self.page.frames:
 
@@ -66,7 +70,7 @@ class FrameFinder:
                     ):
 
                         if SHOW_RECONNECTS:
-                            print("✓ Wheel Of Fortune found")
+                            Logger.success("Wheel Of Fortune found")
 
                         return frame
 
