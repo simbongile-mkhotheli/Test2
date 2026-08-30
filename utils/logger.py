@@ -9,6 +9,7 @@ No external dependencies.
 import traceback
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol
 
 LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
@@ -16,10 +17,18 @@ LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "tracker.log"
 
 
+class EventPublisher(Protocol):
+    """Minimal interface used to forward log entries to the dashboard."""
+
+    def publish(self, kind: str, **payload: object) -> None:
+        """Publish one UI event."""
+
+
 class Logger:
 
-    ENABLE_CONSOLE = True
+    ENABLE_CONSOLE = False
     ENABLE_FILE = False
+    EVENT_PUBLISHER: EventPublisher | None = None
 
     LINE = "=" * 70
 
@@ -33,9 +42,24 @@ class Logger:
     # ---------------------------------------------------------
 
     @staticmethod
+    def configure(event_publisher: EventPublisher | None = None) -> None:
+        """Send future log entries to the supplied dashboard event publisher."""
+        Logger.EVENT_PUBLISHER = event_publisher
+
+    # ---------------------------------------------------------
+
+    @staticmethod
     def _write(level, message):
 
         text = f"[{Logger._time()}] [{level}] {message}"
+
+        if Logger.EVENT_PUBLISHER is not None:
+            Logger.EVENT_PUBLISHER.publish(
+                "log",
+                timestamp=Logger._time(),
+                level=level,
+                message=str(message),
+            )
 
         if Logger.ENABLE_CONSOLE:
             print(text)
@@ -95,24 +119,21 @@ class Logger:
 
         Logger.error(str(ex))
 
-        print(traceback.format_exc())
+        Logger.error(traceback.format_exc())
 
     # ---------------------------------------------------------
 
     @staticmethod
     def separator():
 
-        print(Logger.LINE)
+        Logger.info(Logger.LINE)
 
     # ---------------------------------------------------------
 
     @staticmethod
     def banner(title):
 
-        print()
-        print(Logger.LINE)
-        print(title)
-        print(Logger.LINE)
+        Logger.info(title)
 
     # ---------------------------------------------------------
 
@@ -172,29 +193,15 @@ class Logger:
     @staticmethod
     def live_status(draw, timer, latest):
 
-        print(
-            f"\rRound: {draw} | Timer: {timer:02d} | Latest: {latest}",
-            end="",
-            flush=True
-        )
+        Logger.info(f"Round: {draw} | Timer: {timer:02d} | Latest: {latest}")
 
     # ---------------------------------------------------------
 
     @staticmethod
     def session_summary(results):
 
-        print()
-
-        Logger.separator()
-
-        print("SESSION RESULTS")
-
-        Logger.separator()
-
         for draw, result in results:
-            print(f"{draw},{result}")
-
-        Logger.separator()
+            Logger.info(f"{draw},{result}")
 
     # ---------------------------------------------------------
 
@@ -222,4 +229,4 @@ class Logger:
     @staticmethod
     def blank():
 
-        print()
+        return None
