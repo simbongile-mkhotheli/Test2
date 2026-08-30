@@ -131,12 +131,7 @@ def test_presenter_publishes_session_counts_for_the_dashboard():
         "7-12": 0,
         "13-18": 0,
     }
-    assert updates[0].payload["number_counts"] == {
-        **{number: 0 for number in range(19)},
-        1: 1,
-        2: 1,
-        3: 1,
-    }
+    assert "number_counts" not in updates[0].payload
     assert updates[0].payload["color_counts"] == {
         "Black": 1,
         "Gray": 1,

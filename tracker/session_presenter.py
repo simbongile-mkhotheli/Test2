@@ -183,7 +183,6 @@ class SessionPresenter:
             session_name=self._session_name,
             draw_count=SESSION_DRAW_COUNT,
             results=tuple(results),
-            number_counts=number_counts(result for _, result in results),
             range_counts=range_counts(result for _, result in results),
             color_counts=color_counts(result for _, result in results),
         )

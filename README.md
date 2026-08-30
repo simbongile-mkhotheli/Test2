@@ -76,7 +76,7 @@ it is outside all three ranges and colors.
 Run `python main.py` to open the dashboard and the Playwright browser. Open
 Wheel Of Fortune in that browser, then click **Start tracking** in the
 dashboard. The application displays the connection status, current session,
-latest draw, recent draw table, number, range, and color counts, plus alerts,
+latest draw, recent draw table, range and color counts, plus alerts,
 without requiring terminal output. Click **Stop** or close the dashboard to
 safely stop the tracking worker; the persisted session checkpoint remains
 available for resume.

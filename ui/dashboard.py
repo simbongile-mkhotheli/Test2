@@ -10,7 +10,6 @@ from config import SESSION_DRAW_COUNT
 from models.number_domain import (
     NUMBER_BANDS,
     NUMBER_COLORS,
-    NUMBER_VALUES,
     number_band,
     number_color,
 )
@@ -36,7 +35,7 @@ class Dashboard:
 
         self.root = tk.Tk()
         self.root.title("BetGames Tracker")
-        self.root.minsize(1040, 820)
+        self.root.minsize(1040, 740)
         self.root.protocol("WM_DELETE_WINDOW", self._close)
 
         self._connection_var = tk.StringVar(value="Starting browser…")
@@ -51,10 +50,6 @@ class Dashboard:
         self._color_vars = {
             label: tk.StringVar(value="0") for label, _ in NUMBER_COLORS
         }
-        self._number_vars = {
-            number: tk.StringVar(value="0") for number in NUMBER_VALUES
-        }
-
         self._build()
         self._poll_events()
 
@@ -68,13 +63,12 @@ class Dashboard:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
+        container.rowconfigure(3, weight=1)
         container.rowconfigure(4, weight=1)
-        container.rowconfigure(5, weight=1)
 
         self._build_header(container)
         self._build_summary(container)
         self._build_counts(container)
-        self._build_number_counts(container)
         self._build_results(container)
         self._build_activity(container)
 
@@ -170,7 +164,7 @@ class Dashboard:
 
     def _build_results(self, parent: ttk.Frame) -> None:
         results = ttk.LabelFrame(parent, text="Captured draws", padding=8)
-        results.grid(row=4, column=0, sticky="nsew", pady=(16, 0))
+        results.grid(row=3, column=0, sticky="nsew", pady=(16, 0))
         results.columnconfigure(0, weight=1)
         results.rowconfigure(0, weight=1)
 
@@ -196,27 +190,9 @@ class Dashboard:
         scrollbar.grid(row=0, column=1, sticky="ns")
         self._draws.configure(yscrollcommand=scrollbar.set)
 
-    def _build_number_counts(self, parent: ttk.Frame) -> None:
-        counts = ttk.LabelFrame(parent, text="Number counts", padding=8)
-        counts.grid(row=3, column=0, sticky="ew", pady=(16, 0))
-        for index, number in enumerate(NUMBER_VALUES):
-            row, number_column = divmod(index, 7)
-            column = number_column * 2
-            ttk.Label(counts, text=f"{number:>2}").grid(
-                row=row,
-                column=column,
-                sticky="w",
-                padx=(0, 4),
-            )
-            ttk.Label(
-                counts,
-                textvariable=self._number_vars[number],
-                font=("Segoe UI", 10, "bold"),
-            ).grid(row=row, column=column + 1, sticky="w", padx=(0, 16))
-
     def _build_activity(self, parent: ttk.Frame) -> None:
         activity = ttk.LabelFrame(parent, text="Activity", padding=8)
-        activity.grid(row=5, column=0, sticky="nsew", pady=(16, 0))
+        activity.grid(row=4, column=0, sticky="nsew", pady=(16, 0))
         activity.columnconfigure(0, weight=1)
         activity.rowconfigure(0, weight=1)
         self._activity = tk.Text(activity, height=8, state="disabled", wrap="word")
@@ -319,9 +295,6 @@ class Dashboard:
         color_counts = payload["color_counts"]
         for label, variable in self._color_vars.items():
             variable.set(str(color_counts[label]))
-        number_counts = payload["number_counts"]
-        for number, variable in self._number_vars.items():
-            variable.set(str(number_counts[number]))
 
     def _clear_draws(self) -> None:
         self._draws.delete(*self._draws.get_children())
