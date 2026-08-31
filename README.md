@@ -37,39 +37,34 @@ no prediction or statistical analysis.
 
 ## Results log
 
-`results.txt` is the live, human-readable draw log. Every verified result is
-appended atomically as soon as it is captured. The detailed report for the
-same completed session, including its result counts, is stored as
-`sessions/draw-<start-draw-id>.txt`.
+`results.txt` is a single live, human-readable draw table. Every verified draw
+is appended atomically as soon as it is captured, including draws observed
+while the tracker is waiting for a 30-draw session boundary. It is independent
+of sessions: it starts collecting after you click **Start tracking**, keeps
+going until you stop the program, and never closes or resets at draw 30.
+
+The detailed report for each completed session, including its result counts,
+is stored separately as `sessions/draw-<start-draw-id>.txt`.
 
 ```text
-======================================================================
-SESSION START : 12608180151
-======================================================================
 Pos | Draw ID             | Result
 ----+---------------------+-------
   1 | 12608180151         |     15
   2 | 12608180152         |     16
-...
- 30 | 12608180180         |      3
-======================================================================
-SESSION END
-======================================================================
 ```
 
-Each completed section in `results.txt` and every detailed session report
-includes a `RESULT COUNTS` table for values `0` through `18`, plus a `RANGE
-COUNTS` table for `1–6`, `7–12`, and `13–18`. Zero remains a valid result but
-is not included in a range count. It also includes `COLOR COUNTS`: Black
-(`1, 4, 7, 10, 13, 16`), Gray (`2, 5, 8, 11, 14, 17`), and Red
-(`3, 6, 9, 12, 15, 18`). Zero is not assigned a color.
+Every detailed session report includes a `RESULT COUNTS` table for values `0`
+through `18`, plus a `RANGE COUNTS` table for `1–6`, `7–12`, and `13–18`.
+Zero remains a valid result but is not included in a range count. It also
+includes `COLOR COUNTS`: Black (`1, 4, 7, 10, 13, 16`), Gray
+(`2, 5, 8, 11, 14, 17`), and Red (`3, 6, 9, 12, 15, 18`). Zero is not assigned
+a color.
 
-The desktop dashboard shows range and color alerts once when a group has not
-appeared for more than 9 consecutive captured draws. This means the alert
-triggers at 10 consecutive draws without that group. The alert resets after
-the group appears again, and an ongoing alert is shown again when a partial
-session is restored. Zero extends every range and color absence streak because
-it is outside all three ranges and colors.
+The desktop dashboard shows a range alert once a range has missed 10
+consecutive captured draws and a color alert once a color has missed 24. An
+alert resets after the group appears again, and an ongoing alert is shown again
+when a partial session is restored. Zero extends every range and color absence
+streak because it is outside all three ranges and colors.
 
 ## Desktop dashboard
 
@@ -82,15 +77,13 @@ safely stop the tracking worker; the persisted session checkpoint remains
 available for resume.
 
 During a session, the tracker stores an atomic checkpoint in `sessions/`. A
-restart synchronizes any checkpointed rows that were not yet written to
-`results.txt`, without duplicating them. If all 30 required IDs were captured
-before interruption, startup finalizes the report and completes the live-log
-section.
+restart resumes a partial session or finalizes a completed checkpoint without
+duplicating its session report. The root log is written directly from verified
+browser draws, rather than from session checkpoints.
 
 If any required draw ID was not captured by the end of the 30-draw session,
-the session is saved under `sessions/incomplete/` for review. Its live-log
-section is marked `SESSION INCOMPLETE` and includes the captured-result counts
-and missing IDs.
+the session is saved under `sessions/incomplete/` for review, including its
+captured-result counts and missing IDs.
 
 ## Requirements
 

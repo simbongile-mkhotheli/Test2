@@ -85,29 +85,32 @@ def test_presenter_reports_an_existing_absence_alert_after_restore():
 
     restore_alerts = alert_messages(events)
     assert "RANGE ALERT | 1-6 has not appeared for 10 consecutive draws." in restore_alerts
-    assert "COLOR ALERT | Black has not appeared for 10 consecutive draws." in restore_alerts
+    assert not any(message.startswith("COLOR ALERT") for message in restore_alerts)
 
     presenter.result_recorded([*results, ("12608180161", 0)])
 
     assert not alert_messages(events)
 
 
-def test_presenter_alerts_once_when_a_color_is_absent_for_more_than_nine_draws(
+def test_presenter_alerts_once_when_a_color_is_absent_for_twenty_four_draws(
 ):
     events = EventBus()
     presenter = SessionPresenter(events)
-    first_nine = [(str(12608180151 + index), 0) for index in range(9)]
-    tenth = [*first_nine, ("12608180160", 0)]
+    first_twenty_three = [
+        (str(12608180151 + index), 0)
+        for index in range(23)
+    ]
+    twenty_fourth = [*first_twenty_three, ("12608180174", 0)]
 
-    presenter.result_recorded(first_nine)
-    assert not alert_messages(events)
+    presenter.result_recorded(first_twenty_three)
+    assert not any(message.startswith("COLOR ALERT") for message in alert_messages(events))
 
-    presenter.result_recorded(tenth)
+    presenter.result_recorded(twenty_fourth)
     alert_output = alert_messages(events)
     for color in ("Black", "Gray", "Red"):
-        assert f"COLOR ALERT | {color} has not appeared for 10 consecutive draws." in alert_output
+        assert f"COLOR ALERT | {color} has not appeared for 24 consecutive draws." in alert_output
 
-    presenter.result_recorded([*tenth, ("12608180161", 0)])
+    presenter.result_recorded([*twenty_fourth, ("12608180175", 0)])
     assert not alert_messages(events)
 
 

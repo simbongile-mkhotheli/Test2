@@ -86,10 +86,6 @@ class SessionManager:
             checkpoint.results,
         )
         self._last_history = checkpoint.last_history
-        self.storage.append_live_results(
-            checkpoint.start_draw_id,
-            checkpoint.results,
-        )
         self.presenter.restore(self.results, checkpoint.name)
         if self.is_complete():
             self.finish()
@@ -111,6 +107,7 @@ class SessionManager:
         previous_draw: str = "",
         previous_history: tuple[int, ...] | None = None,
         should_stop=None,
+        on_snapshot=None,
     ):
         """Wait for a verified snapshot at the next ``...1`` boundary."""
         self.presenter.waiting_for_session()
@@ -125,6 +122,8 @@ class SessionManager:
             )
             last_draw = snapshot.draw_id
             last_history = tuple(snapshot.history)
+            if on_snapshot is not None:
+                on_snapshot(snapshot)
             self.presenter.waiting_draw(
                 snapshot.draw_id,
                 self.draw_position(snapshot.draw_id),
@@ -167,10 +166,6 @@ class SessionManager:
                 updated_results,
                 tuple(snapshot.history),
             )
-            self.storage.append_live_results(
-                self.start_draw_id or "",
-                updated_results,
-            )
             self.state.commit_results(updated_results)
             self._last_history = tuple(snapshot.history)
             accepted_draw_ids = tuple(
@@ -200,10 +195,6 @@ class SessionManager:
             updated_results,
             self._last_history,
         )
-        self.storage.append_live_results(
-            self.start_draw_id or "",
-            updated_results,
-        )
         self.state.commit_results(updated_results)
         self.presenter.result_recorded(self.results)
 
@@ -219,12 +210,6 @@ class SessionManager:
         captured_count = len(self.results)
         start_draw_id = self.start_draw_id
         archive_path = self.storage.preserve_incomplete_session(
-            observed_draw_id,
-            missing_draw_ids,
-        )
-        self.storage.mark_live_session_incomplete(
-            start_draw_id or "",
-            self.results,
             observed_draw_id,
             missing_draw_ids,
         )
@@ -256,7 +241,6 @@ class SessionManager:
             self.results,
         )
         filename = self.storage.save_session(self.session_name, report_text)
-        self.storage.append_completed_session(self.results)
         self.storage.clear_active_session()
         self.state.clear()
         self._last_history = None

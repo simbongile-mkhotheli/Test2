@@ -10,24 +10,19 @@ from tempfile import NamedTemporaryFile
 from config import (
     ACTIVE_SESSION_FILE,
     INCOMPLETE_SESSIONS_DIR,
-    LINE,
     RESULTS_FILE,
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
 )
-from models.number_domain import (
-    NUMBER_BANDS,
-    NUMBER_COLORS,
-    NUMBER_VALUES,
-    color_counts,
-    number_counts,
-    range_counts,
-    validate_number,
-)
+from models.number_domain import validate_number
 
 
-_DRAW_LINE_RE = re.compile(r"^\s*(\d{1,3})\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
+_DRAW_LINE_RE = re.compile(r"^\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
 _CSV_LINE_RE = re.compile(r"^\s*(\d+)\s*,\s*(-?\d+)\s*$")
+_RESULTS_LOG_HEADER = (
+    "Pos | Draw ID             | Result",
+    "----+---------------------+-------",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,32 +136,6 @@ class Storage:
             require_start_draw=True,
         )
 
-    @classmethod
-    def _completed_session_rows(
-        cls,
-        results: list[tuple[str, int]],
-    ) -> list[tuple[str, int]]:
-        """Validate a complete, draw-ID-aligned session before finalizing it."""
-        if not results:
-            raise ValueError("Cannot persist an empty completed session")
-
-        start_draw_id = results[0][0]
-        validated_results = cls._validated_results(results, start_draw_id)
-        if len(validated_results) != SESSION_DRAW_COUNT:
-            raise ValueError(
-                f"Completed sessions must contain {SESSION_DRAW_COUNT} draws"
-            )
-        expected_draw_ids = [
-            str(int(start_draw_id) + offset)
-            for offset in range(SESSION_DRAW_COUNT)
-        ]
-        if [draw_id for draw_id, _ in validated_results] != expected_draw_ids:
-            raise ValueError(
-                "Completed session must contain every consecutive draw ID in "
-                "its fixed session boundary"
-            )
-        return validated_results
-
     def checkpoint_session(
         self,
         session_name: str,
@@ -233,7 +202,7 @@ class Storage:
         observed_draw_id: str,
         missing_draw_ids: tuple[str, ...],
     ) -> Path | None:
-        """Keep an incomplete partial session without deleting its live log."""
+        """Keep an incomplete partial session without changing the root log."""
         checkpoint = self.load_active_session()
         if checkpoint is None:
             return None
@@ -263,191 +232,59 @@ class Storage:
         return archive_path
 
     @staticmethod
-    def _result_count_lines(results: list[tuple[str, int]]) -> list[str]:
-        """Render number, range, and color frequency tables for the live log."""
-        counts = number_counts(result for _, result in results)
-        lines = ["RESULT COUNTS", "Number | Count", "-------+------"]
+    def _validate_live_result(draw_id: str, result: int) -> tuple[str, int]:
+        if not isinstance(draw_id, str) or not draw_id.isdigit():
+            raise ValueError(f"Invalid draw ID: {draw_id!r}")
+        return draw_id, validate_number(result)
+
+    def _write_live_results(self, results: list[tuple[str, int]]) -> None:
+        lines = [*_RESULTS_LOG_HEADER]
         lines.extend(
-            f"{number:>6} | {counts[number]:>5}"
-            for number in NUMBER_VALUES
+            f"{position:>3} | {draw_id:<19} | {result:>6}"
+            for position, (draw_id, result) in enumerate(results, start=1)
         )
-        lines.append(f"Total  | {len(results):>5}")
-        lines.extend(("", "RANGE COUNTS", "Range | Count", "------+------"))
-        range_totals = range_counts(result for _, result in results)
-        lines.extend(
-            f"{label:<5} | {range_totals[label]:>5}"
-            for label, _ in NUMBER_BANDS
-        )
-        lines.extend(("", "COLOR COUNTS", "Color | Count", "------+------"))
-        color_totals = color_counts(result for _, result in results)
-        lines.extend(
-            f"{label:<5} | {color_totals[label]:>5}"
-            for label, _ in NUMBER_COLORS
-        )
-        return lines
+        self._atomic_write_text(RESULTS_FILE, "\n".join(lines) + "\n")
 
-    def append_live_results(
-        self,
-        start_draw_id: str,
-        results: list[tuple[str, int]],
-    ) -> tuple[str, ...]:
-        """Atomically append newly verified draw rows to the live results log.
-
-        The session checkpoint is the authoritative recovery record. This log
-        is idempotent, so a restart can safely call this method again to fill
-        any rows written before an interruption.
-        """
-        validated_results = self._validated_session_rows(
-            results,
-            start_draw_id,
-            require_start_draw=False,
-        )
-        if not validated_results:
-            return ()
-
-        existing = RESULTS_FILE.read_text(encoding="utf-8")
-        marker = f"SESSION START : {start_draw_id}"
-        seen_draw_ids = {
-            match.group(2)
-            for line in existing.splitlines()
-            if (match := _DRAW_LINE_RE.match(line.strip()))
-        }
-        new_results = [
-            (draw_id, result)
-            for draw_id, result in validated_results
-            if draw_id not in seen_draw_ids
-        ]
-        if not new_results:
-            return ()
-
-        lines: list[str] = []
-        if marker not in existing:
-            if existing:
-                lines.append("")
-            lines.extend(
-                (
-                    LINE,
-                    marker,
-                    LINE,
-                    "Pos | Draw ID             | Result",
-                    "----+---------------------+-------",
+    def prepare_live_results_log(self) -> None:
+        """Convert any legacy session-formatted root log to one live table."""
+        normalized: list[tuple[str, int]] = []
+        known_results: dict[str, int] = {}
+        for draw_id, result in self.read_results():
+            prior_result = known_results.get(draw_id)
+            if prior_result is None:
+                normalized.append((draw_id, result))
+                known_results[draw_id] = result
+            elif prior_result != result:
+                raise ValueError(
+                    f"The results log has conflicting values for draw {draw_id}"
                 )
-            )
+        self._write_live_results(normalized)
 
-        session_start = int(start_draw_id)
-        lines.extend(
-            f"{int(draw_id) - session_start + 1:>3} | {draw_id:<19} | {result:>6}"
-            for draw_id, result in new_results
-        )
-        self._atomic_write_text(
-            RESULTS_FILE,
-            existing + "\n".join(lines) + "\n",
-        )
-        return tuple(draw_id for draw_id, _ in new_results)
+    def append_live_result(self, draw_id: str, result: int) -> bool:
+        """Atomically add one verified draw to the root live-results table.
 
-    def close_live_session(
-        self,
-        start_draw_id: str,
-        results: list[tuple[str, int]],
-    ) -> None:
-        """Append count totals and a closing marker once a session is complete."""
-        validated_results = self._completed_session_rows(results)
-        existing = RESULTS_FILE.read_text(encoding="utf-8")
-        marker = f"SESSION START : {start_draw_id}"
-        session_start = existing.find(marker)
-        if session_start < 0:
-            raise ValueError(f"Live session marker is missing: {start_draw_id}")
-
-        next_session = existing.find("SESSION START :", session_start + len(marker))
-        session_text = existing[session_start: next_session if next_session >= 0 else None]
-        if "SESSION END" in session_text:
-            return
-
-        lines = ["", *self._result_count_lines(validated_results), LINE, "SESSION END", LINE]
-        self._atomic_write_text(
-            RESULTS_FILE,
-            existing + "\n".join(lines) + "\n",
-        )
-
-    def mark_live_session_incomplete(
-        self,
-        start_draw_id: str,
-        results: list[tuple[str, int]],
-        observed_draw_id: str,
-        missing_draw_ids: tuple[str, ...],
-    ) -> None:
-        """Close a live partial session without presenting it as complete."""
-        validated_results = self._validated_session_rows(
-            results,
-            start_draw_id,
-            require_start_draw=True,
-        )
-        existing = RESULTS_FILE.read_text(encoding="utf-8")
-        marker = f"SESSION START : {start_draw_id}"
-        session_start = existing.find(marker)
-        if session_start < 0:
-            raise ValueError(f"Live session marker is missing: {start_draw_id}")
-
-        next_session = existing.find("SESSION START :", session_start + len(marker))
-        session_text = existing[session_start: next_session if next_session >= 0 else None]
-        if "SESSION END" in session_text or "SESSION INCOMPLETE" in session_text:
-            return
-
-        lines = [
-            "",
-            *self._result_count_lines(validated_results),
-            f"Missing draw IDs : {', '.join(missing_draw_ids)}",
-            f"Observed at      : {observed_draw_id}",
-            LINE,
-            "SESSION INCOMPLETE",
-            LINE,
-        ]
-        self._atomic_write_text(
-            RESULTS_FILE,
-            existing + "\n".join(lines) + "\n",
-        )
-
-    def append_result(
-        self,
-        draw_id: str,
-        result: int,
-    ) -> None:
-        """Legacy per-draw writer retained for compatibility callers.
-
-        The runtime uses ``append_live_results`` after every verified draw and
-        ``close_live_session`` only when the session reaches completion.
+        The log is independent of 30-draw sessions. A repeated observation of
+        the same draw with the same value is ignored; a conflicting value is
+        treated as an integrity error.
         """
-        validate_number(result)
-        position = int(draw_id[-1])
-        existing = RESULTS_FILE.read_text(encoding="utf-8")
-        lines: list[str] = []
-        if position == 1:
-            if existing:
-                lines.append("")
-            lines.extend(
-                (
-                    LINE,
-                    f"SESSION START : {draw_id}",
-                    LINE,
-                    "Pos | Draw ID             | Result",
-                    "----+---------------------+-------",
+        draw_id, result = self._validate_live_result(draw_id, result)
+        results = self.read_results()
+        for existing_draw_id, existing_result in results:
+            if existing_draw_id != draw_id:
+                continue
+            if existing_result != result:
+                raise ValueError(
+                    f"The results log disagrees with draw {draw_id}: "
+                    f"expected {existing_result}, got {result}"
                 )
-            )
+            return False
 
-        lines.append(f"{position:>3} | {draw_id:<19} | {result:>6}")
+        self._write_live_results([*results, (draw_id, result)])
+        return True
 
-        if position == 0:
-            lines.extend((LINE, "SESSION END", LINE))
-
-        suffix = "\n".join(lines) + "\n"
-        self._atomic_write_text(RESULTS_FILE, existing + suffix)
-
-    def append_completed_session(self, results: list[tuple[str, int]]) -> None:
-        """Finalize a complete session; retained for compatibility callers."""
-        validated_results = self._completed_session_rows(results)
-        start_draw_id = validated_results[0][0]
-        self.append_live_results(start_draw_id, validated_results)
-        self.close_live_session(start_draw_id, validated_results)
+    def append_result(self, draw_id: str, result: int) -> None:
+        """Compatibility name for appending one independent live result."""
+        self.append_live_result(draw_id, result)
 
     def save_session(self, session_name: str, report: str):
         filename = SESSIONS_DIR / f"{session_name}.txt"
@@ -455,7 +292,7 @@ class Storage:
         return filename
 
     def clear_results(self):
-        self._atomic_write_text(RESULTS_FILE, "")
+        self._write_live_results([])
 
     def read_results(self):
         if not RESULTS_FILE.exists():

@@ -2,7 +2,12 @@
 
 from pathlib import Path
 
-from config import ABSENCE_ALERT_AFTER, LINE, SESSION_DRAW_COUNT
+from config import (
+    COLOR_ABSENCE_ALERT_AT,
+    LINE,
+    RANGE_ABSENCE_ALERT_AT,
+    SESSION_DRAW_COUNT,
+)
 from models.number_domain import (
     NUMBER_BANDS,
     NUMBER_COLORS,
@@ -194,6 +199,7 @@ class SessionPresenter:
             NUMBER_BANDS,
             self._range_absence_streaks(results),
             self._alerted_absent_ranges,
+            RANGE_ABSENCE_ALERT_AT,
         )
 
     def _publish_color_absence_alerts(self, results: list[tuple[str, int]]) -> None:
@@ -203,6 +209,7 @@ class SessionPresenter:
             NUMBER_COLORS,
             self._color_absence_streaks(results),
             self._alerted_absent_colors,
+            COLOR_ABSENCE_ALERT_AT,
         )
 
     def _publish_absence_alerts(
@@ -211,15 +218,16 @@ class SessionPresenter:
         groups: tuple[tuple[str, range], ...],
         streaks: dict[str, int],
         alerted_groups: set[str],
+        alert_at: int,
     ) -> None:
-        """Publish a one-time alert for each group that crosses the threshold."""
+        """Publish a one-time alert when a group reaches its threshold."""
         for label, _ in groups:
             streak = streaks[label]
             if streak == 0:
                 alerted_groups.discard(label)
                 continue
             if (
-                streak > ABSENCE_ALERT_AFTER
+                streak >= alert_at
                 and label not in alerted_groups
             ):
                 message = (

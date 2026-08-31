@@ -16,6 +16,7 @@ from threading import Event
 from traceback import format_exc
 
 from exceptions import RecoverableError, TrackerStopped
+from storage.storage import Storage
 from tracker.frame_finder import FrameFinder
 from tracker.game_reader import GameReader
 from utils.logger import Logger
@@ -38,6 +39,7 @@ class Tracker:
         self.frame = None
         self.reader = None
         self.session = SessionManager(events)
+        self.live_results = Storage()
         self.last_round = self.session.last_draw_id()
         self.last_history = self.session.last_history()
 
@@ -76,6 +78,13 @@ class Tracker:
 
     # --------------------------------------------------
 
+    def _record_live_result(self, snapshot) -> None:
+        """Record every verified draw independently of session boundaries."""
+        if self.live_results.append_live_result(snapshot.draw_id, snapshot.latest):
+            self._log_result(snapshot)
+
+    # --------------------------------------------------
+
     def _remember_snapshot(self, snapshot) -> None:
         """Retain a result fingerprint for the next draw verification."""
         self.last_round = snapshot.draw_id
@@ -92,6 +101,7 @@ class Tracker:
     def run(self):
         self._publish("tracking_started")
         try:
+            self.live_results.prepare_live_results_log()
             self.connect()
 
             while not self.stop_event.is_set():
@@ -108,13 +118,12 @@ class Tracker:
                             self.last_round,
                             self.last_history,
                             self.stop_event.is_set,
+                            self._record_live_result,
                         )
 
                         self._remember_snapshot(snapshot)
                         self.session.start(snapshot.draw_id)
-                        update = self.session.add_snapshot(snapshot)
-                        if update.captured_current_draw:
-                            self._log_result(snapshot)
+                        self.session.add_snapshot(snapshot)
 
                     except RecoverableError as ex:
                         Logger.warning(str(ex))
@@ -136,10 +145,9 @@ class Tracker:
                             self.stop_event.is_set,
                         )
                         self._remember_snapshot(snapshot)
+                        self._record_live_result(snapshot)
 
                         update = self.session.add_snapshot(snapshot)
-                        if update.captured_current_draw:
-                            self._log_result(snapshot)
 
                         if self.session.is_complete():
                             self.session.finish()
