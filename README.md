@@ -29,6 +29,7 @@ main.py
           -> SessionState (session rules and state)
           -> Storage
           -> SessionPresenter -> EventBus -> Dashboard
+      -> AlertMonitor (live results) -> EventBus -> Dashboard
 ```
 
 Game results are integers from `0` through `18`. Invalid values are rejected
@@ -60,10 +61,11 @@ includes `COLOR COUNTS`: Black (`1, 4, 7, 10, 13, 16`), Gray
 (`2, 5, 8, 11, 14, 17`), and Red (`3, 6, 9, 12, 15, 18`). Zero is not assigned
 a color.
 
-The desktop dashboard shows a range alert once a range has missed 10
-consecutive captured draws and a color alert once a color has missed 24. An
-alert resets after the group appears again, and an ongoing alert is shown again
-when a partial session is restored. Zero extends every range and color absence
+The desktop dashboard monitors alerts from every verified live draw, not from
+individual sessions. It shows a range alert once a range has missed 10
+consecutive draws and a color alert once a color has missed 24. An alert resets
+after the group appears again, and an ongoing alert is restored from
+`results.txt` when tracking starts. Zero extends every range and color absence
 streak because it is outside all three ranges and colors.
 
 ## Desktop dashboard

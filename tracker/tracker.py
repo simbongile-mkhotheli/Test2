@@ -17,6 +17,7 @@ from traceback import format_exc
 
 from exceptions import RecoverableError, TrackerStopped
 from storage.storage import Storage
+from tracker.alert_monitor import AlertMonitor
 from tracker.frame_finder import FrameFinder
 from tracker.game_reader import GameReader
 from utils.logger import Logger
@@ -40,6 +41,7 @@ class Tracker:
         self.reader = None
         self.session = SessionManager(events)
         self.live_results = Storage()
+        self.alerts = AlertMonitor(events)
         self.last_round = self.session.last_draw_id()
         self.last_history = self.session.last_history()
 
@@ -81,6 +83,7 @@ class Tracker:
     def _record_live_result(self, snapshot) -> None:
         """Record every verified draw independently of session boundaries."""
         if self.live_results.append_live_result(snapshot.draw_id, snapshot.latest):
+            self.alerts.record_result(snapshot.latest)
             self._log_result(snapshot)
 
     # --------------------------------------------------
@@ -102,6 +105,7 @@ class Tracker:
         self._publish("tracking_started")
         try:
             self.live_results.prepare_live_results_log()
+            self.alerts.restore(self.live_results.read_results())
             self.connect()
 
             while not self.stop_event.is_set():

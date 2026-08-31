@@ -2,20 +2,13 @@
 
 from pathlib import Path
 
-from config import (
-    COLOR_ABSENCE_ALERT_AT,
-    LINE,
-    RANGE_ABSENCE_ALERT_AT,
-    SESSION_DRAW_COUNT,
-)
+from config import LINE, SESSION_DRAW_COUNT
 from models.number_domain import (
     NUMBER_BANDS,
     NUMBER_COLORS,
     NUMBER_VALUES,
-    color_absence_streaks,
     color_counts,
     number_counts,
-    range_absence_streaks,
     range_counts,
 )
 from ui.events import EventBus
@@ -26,8 +19,6 @@ class SessionPresenter:
 
     def __init__(self, events: EventBus | None = None):
         self.events = events
-        self._alerted_absent_ranges: set[str] = set()
-        self._alerted_absent_colors: set[str] = set()
         self._session_name = ""
 
     def restore(
@@ -35,16 +26,12 @@ class SessionPresenter:
         results: list[tuple[str, int]],
         session_name: str = "",
     ) -> None:
-        """Publish restored checkpoint state and any currently active alerts."""
+        """Publish restored checkpoint state for the session dashboard."""
         self.reset()
         self._session_name = session_name
         self._publish_session_update(results)
-        self._publish_range_absence_alerts(results)
-        self._publish_color_absence_alerts(results)
 
     def reset(self) -> None:
-        self._alerted_absent_ranges = set()
-        self._alerted_absent_colors = set()
         self._session_name = ""
 
     def waiting_for_session(self) -> None:
@@ -80,8 +67,6 @@ class SessionPresenter:
         results: list[tuple[str, int]],
     ) -> None:
         self._publish_session_update(results)
-        self._publish_range_absence_alerts(results)
-        self._publish_color_absence_alerts(results)
 
     def session_incomplete(
         self,
@@ -165,18 +150,6 @@ class SessionPresenter:
             filename=str(filename),
         )
 
-    @staticmethod
-    def _range_absence_streaks(results: list[tuple[str, int]]) -> dict[str, int]:
-        return range_absence_streaks(value for _, value in results)
-
-    @staticmethod
-    def _color_absence_streaks(results: list[tuple[str, int]]) -> dict[str, int]:
-        return color_absence_streaks(value for _, value in results)
-
-    @staticmethod
-    def _color_counts(results: list[tuple[str, int]]) -> dict[str, int]:
-        return color_counts(value for _, value in results)
-
     def _publish(self, kind: str, **payload: object) -> None:
         """Send presentation updates to the dashboard when one is active."""
         if self.events is not None:
@@ -191,54 +164,3 @@ class SessionPresenter:
             range_counts=range_counts(result for _, result in results),
             color_counts=color_counts(result for _, result in results),
         )
-
-    def _publish_range_absence_alerts(self, results: list[tuple[str, int]]) -> None:
-        """Alert once when a range first exceeds the absence threshold."""
-        self._publish_absence_alerts(
-            "RANGE",
-            NUMBER_BANDS,
-            self._range_absence_streaks(results),
-            self._alerted_absent_ranges,
-            RANGE_ABSENCE_ALERT_AT,
-        )
-
-    def _publish_color_absence_alerts(self, results: list[tuple[str, int]]) -> None:
-        """Alert once when a color first exceeds the absence threshold."""
-        self._publish_absence_alerts(
-            "COLOR",
-            NUMBER_COLORS,
-            self._color_absence_streaks(results),
-            self._alerted_absent_colors,
-            COLOR_ABSENCE_ALERT_AT,
-        )
-
-    def _publish_absence_alerts(
-        self,
-        alert_type: str,
-        groups: tuple[tuple[str, range], ...],
-        streaks: dict[str, int],
-        alerted_groups: set[str],
-        alert_at: int,
-    ) -> None:
-        """Publish a one-time alert when a group reaches its threshold."""
-        for label, _ in groups:
-            streak = streaks[label]
-            if streak == 0:
-                alerted_groups.discard(label)
-                continue
-            if (
-                streak >= alert_at
-                and label not in alerted_groups
-            ):
-                message = (
-                    f"{alert_type} ALERT | {label} has not appeared for {streak} "
-                    "consecutive draws."
-                )
-                self._publish(
-                    "alert",
-                    alert_type=alert_type,
-                    label=label,
-                    streak=streak,
-                    message=message,
-                )
-                alerted_groups.add(label)

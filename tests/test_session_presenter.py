@@ -2,14 +2,6 @@ from tracker.session_presenter import SessionPresenter
 from ui.events import EventBus
 
 
-def alert_messages(events: EventBus) -> list[str]:
-    return [
-        event.payload["message"]
-        for event in events.drain()
-        if event.kind == "alert"
-    ]
-
-
 def test_presenter_publishes_restored_checkpoint_state_for_the_dashboard():
     events = EventBus()
     presenter = SessionPresenter(events)
@@ -56,62 +48,6 @@ def test_presenter_builds_the_final_report():
     assert "Black |     0" in report
     assert "Gray  |     0" in report
     assert "Red   |     2" in report
-
-
-def test_presenter_alerts_once_when_a_range_is_absent_for_more_than_nine_draws(
-):
-    events = EventBus()
-    presenter = SessionPresenter(events)
-    first_nine = [(str(12608180151 + index), 0) for index in range(9)]
-    tenth = [*first_nine, ("12608180160", 0)]
-
-    presenter.result_recorded(first_nine)
-    assert not alert_messages(events)
-
-    presenter.result_recorded(tenth)
-    alert_output = alert_messages(events)
-    for label in ("1-6", "7-12", "13-18"):
-        assert f"RANGE ALERT | {label} has not appeared for 10 consecutive draws." in alert_output
-
-    presenter.result_recorded([*tenth, ("12608180161", 0)])
-    assert not alert_messages(events)
-
-
-def test_presenter_reports_an_existing_absence_alert_after_restore():
-    results = [(str(12608180151 + index), 0) for index in range(10)]
-    events = EventBus()
-    presenter = SessionPresenter(events)
-    presenter.restore(results)
-
-    restore_alerts = alert_messages(events)
-    assert "RANGE ALERT | 1-6 has not appeared for 10 consecutive draws." in restore_alerts
-    assert not any(message.startswith("COLOR ALERT") for message in restore_alerts)
-
-    presenter.result_recorded([*results, ("12608180161", 0)])
-
-    assert not alert_messages(events)
-
-
-def test_presenter_alerts_once_when_a_color_is_absent_for_twenty_four_draws(
-):
-    events = EventBus()
-    presenter = SessionPresenter(events)
-    first_twenty_three = [
-        (str(12608180151 + index), 0)
-        for index in range(23)
-    ]
-    twenty_fourth = [*first_twenty_three, ("12608180174", 0)]
-
-    presenter.result_recorded(first_twenty_three)
-    assert not any(message.startswith("COLOR ALERT") for message in alert_messages(events))
-
-    presenter.result_recorded(twenty_fourth)
-    alert_output = alert_messages(events)
-    for color in ("Black", "Gray", "Red"):
-        assert f"COLOR ALERT | {color} has not appeared for 24 consecutive draws." in alert_output
-
-    presenter.result_recorded([*twenty_fourth, ("12608180175", 0)])
-    assert not alert_messages(events)
 
 
 def test_presenter_publishes_session_counts_for_the_dashboard():

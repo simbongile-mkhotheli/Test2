@@ -263,7 +263,6 @@ class Dashboard:
             self._latest_draw_var.set("-")
             self._latest_result_var.set("-")
             self._clear_draws()
-            self._alerts.delete(0, tk.END)
             self._status_var.set(
                 f"Session runs from {payload['start_draw_id']} to {payload['end_draw_id']}."
             )
