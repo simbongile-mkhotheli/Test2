@@ -117,7 +117,7 @@ def test_presenter_alerts_once_when_a_color_is_absent_for_twenty_four_draws(
 def test_presenter_publishes_session_counts_for_the_dashboard():
     events = EventBus()
     presenter = SessionPresenter(events)
-    presenter.session_started("draw-12608180151", "12608180151", "12608180180", 30)
+    presenter.session_started("draw-12608180151", "12608180151", "12608180160", 10)
     presenter.result_recorded(
         [
             ("12608180151", 1),

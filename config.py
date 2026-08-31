@@ -88,8 +88,8 @@ INCOMPLETE_SESSIONS_DIR = SESSIONS_DIR / "incomplete"
 # -----------------------------------------------------
 
 # Sessions are defined by draw IDs, not wall-clock time. A session begins on an
-# ID ending in 1 and ends at the 30th consecutive draw ID.
-SESSION_DRAW_COUNT = 30
+# ID ending in 1 and ends at the 10th consecutive draw ID (ending in 0).
+SESSION_DRAW_COUNT = 10
 
 
 # -----------------------------------------------------

@@ -1,8 +1,20 @@
+from config import SESSION_DRAW_COUNT
 from tracker.session_state import SessionState
 
 
+def test_ten_draw_session_starts_at_one_and_ends_at_zero():
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
+    state.start("12608180151")
+
+    assert state.end_draw_id == "12608180160"
+    assert state.expected_draw_ids == tuple(
+        str(12608180151 + offset)
+        for offset in range(SESSION_DRAW_COUNT)
+    )
+
+
 def test_state_proposes_results_without_mutating_before_persistence():
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     state.start("12608180151")
 
     proposed = state.proposed_results("12608180151", 15)
@@ -15,7 +27,7 @@ def test_state_proposes_results_without_mutating_before_persistence():
 
 
 def test_state_accepts_new_observed_draw_ids_after_a_skip():
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     state.start("12608180151")
     state.commit_results(state.proposed_results("12608180151", 15))
 
@@ -28,56 +40,56 @@ def test_state_accepts_new_observed_draw_ids_after_a_skip():
 
 
 def test_state_never_assigns_an_older_history_value_to_a_draw_id():
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     start = 12608260571
     state.start(str(start))
-    state.commit_results([(str(start + offset), 1) for offset in range(16)])
+    state.commit_results([(str(start + offset), 1) for offset in range(6)])
 
     proposed = state.proposed_result_from_snapshot(
-        "12608260588",
+        "12608260578",
         [8, 17, *([1] * 8)],
     )
 
     assert proposed is not None
-    assert dict(proposed)["12608260588"] == 8
-    assert "12608260587" not in dict(proposed)
-    assert len(proposed) == 17
+    assert dict(proposed)["12608260578"] == 8
+    assert "12608260577" not in dict(proposed)
+    assert len(proposed) == 7
 
 
 def test_later_history_values_cannot_overwrite_a_checkpointed_draw():
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     start = 12608270881
     state.start(str(start))
     state.commit_results(
         [
-            (str(start + offset), 8 if offset == 9 else 1)
-            for offset in range(10)
+            (str(start + offset), 8 if offset == 8 else 1)
+            for offset in range(9)
         ]
     )
 
     proposed = state.proposed_result_from_snapshot(
-        "12608270891",
+        "12608270890",
         [15, 14, 8, *([1] * 7)],
     )
 
     assert proposed is not None
-    assert dict(proposed)["12608270890"] == 8
-    assert dict(proposed)["12608270891"] == 15
+    assert dict(proposed)["12608270889"] == 8
+    assert dict(proposed)["12608270890"] == 15
 
 
 def test_state_marks_all_missing_draws_as_incomplete_at_session_end():
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     start = 12608260571
     state.start(str(start))
-    state.commit_results([(str(start + offset), 1) for offset in range(16)])
+    state.commit_results([(str(start + offset), 1) for offset in range(6)])
 
-    assert state.incomplete_missing_draw_ids("12608260601") == (
-        *(str(draw_id) for draw_id in range(12608260587, 12608260601)),
+    assert state.incomplete_missing_draw_ids("12608260581") == (
+        *(str(draw_id) for draw_id in range(12608260577, 12608260581)),
     )
 
 
 def test_state_keeps_the_first_checkpointed_value_for_a_duplicate_draw():
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     state.start("12608260571")
     state.commit_results([("12608260571", 3)])
 
@@ -97,19 +109,27 @@ def test_state_completion_depends_on_the_configured_capture_count():
 
     assert state.is_complete()
 
-    state = SessionState(draw_count=30)
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     state.start("12608180151")
     state.commit_results(
-        [(str(12608180151 + offset), offset % 19) for offset in range(30)]
+        [
+            (str(12608180151 + offset), offset % 19)
+            for offset in range(SESSION_DRAW_COUNT)
+        ]
     )
     assert state.is_complete()
 
 
-def test_state_cannot_complete_when_thirty_results_include_a_wrong_draw_id():
-    state = SessionState(draw_count=30)
+def test_state_cannot_complete_when_ten_results_include_a_wrong_draw_id():
+    state = SessionState(draw_count=SESSION_DRAW_COUNT)
     start = 12608180151
     state.start(str(start))
-    state.commit_results([(str(start + offset), offset % 19) for offset in range(29)])
+    state.commit_results(
+        [
+            (str(start + offset), offset % 19)
+            for offset in range(SESSION_DRAW_COUNT - 1)
+        ]
+    )
 
-    assert state.proposed_results("12608180181", 3) is None
+    assert state.proposed_results(str(start + SESSION_DRAW_COUNT), 3) is None
     assert not state.is_complete()

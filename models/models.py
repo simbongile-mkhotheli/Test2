@@ -70,7 +70,7 @@ class Result:
 @dataclass(slots=True)
 class Session:
     """
-    Represents one 30-minute tracking session.
+    Represents one tracking session.
     """
 
     name: str

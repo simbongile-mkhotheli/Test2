@@ -2,15 +2,15 @@
 
 A local Python tracker for the BetGames Wheel of Fortune demo.
 
-The project focuses on reliable draw capture and draw-ID-aligned 30-draw
+The project focuses on reliable draw capture and draw-ID-aligned 10-draw
 sessions. Prediction, voting, confidence scoring, adaptive learning, and
 model-selection logic are intentionally absent.
 
 ## Session model
 
 Sessions are defined by draw IDs, not by the computer clock. A session starts
-at a draw ID ending in `1` and contains the next 30 consecutive IDs. For
-example, a session beginning at `12608260571` must end at `12608260600`.
+at a draw ID ending in `1` and contains the next 10 consecutive IDs. For
+example, a session beginning at `12608260571` ends at `12608260580`.
 
 The tracker can be launched at any time. It ignores draws until the next valid
 `...1` boundary. The compact browser history is used to verify that a result
@@ -39,9 +39,9 @@ no prediction or statistical analysis.
 
 `results.txt` is a single live, human-readable draw table. Every verified draw
 is appended atomically as soon as it is captured, including draws observed
-while the tracker is waiting for a 30-draw session boundary. It is independent
+while the tracker is waiting for a 10-draw session boundary. It is independent
 of sessions: it starts collecting after you click **Start tracking**, keeps
-going until you stop the program, and never closes or resets at draw 30.
+going until you stop the program, and never closes or resets at draw 10.
 
 The detailed report for each completed session, including its result counts,
 is stored separately as `sessions/draw-<start-draw-id>.txt`.
@@ -81,7 +81,7 @@ restart resumes a partial session or finalizes a completed checkpoint without
 duplicating its session report. The root log is written directly from verified
 browser draws, rather than from session checkpoints.
 
-If any required draw ID was not captured by the end of the 30-draw session,
+If any required draw ID was not captured by the end of the 10-draw session,
 the session is saved under `sessions/incomplete/` for review, including its
 captured-result counts and missing IDs.
 

@@ -1,3 +1,4 @@
+from config import SESSION_DRAW_COUNT
 from tracker.session_manager import SessionManager
 from storage.storage import Storage
 from models.models import Snapshot
@@ -31,7 +32,7 @@ def test_session_manager_finalizes_completed_checkpoint_on_startup(tmp_path, mon
     configure_session_storage(tmp_path, monkeypatch)
     results = [
         (str(12608180151 + offset), offset % 19)
-        for offset in range(30)
+        for offset in range(SESSION_DRAW_COUNT)
     ]
     Storage().checkpoint_session("draw-12608180151", "12608180151", results)
 
@@ -70,12 +71,12 @@ def test_session_manager_records_only_the_current_draw_from_a_verified_snapshot(
     manager = SessionManager()
     start = 12608260571
     manager.start(str(start))
-    for offset in range(16):
+    for offset in range(6):
         manager.add_result(str(start + offset), 1)
 
     update = manager.add_snapshot(
         Snapshot(
-            draw_id="12608260588",
+            draw_id="12608260578",
             timer=10,
             latest=8,
             history=[8, 17, *([1] * 8)],
@@ -83,8 +84,8 @@ def test_session_manager_records_only_the_current_draw_from_a_verified_snapshot(
     )
 
     assert update.captured_current_draw
-    assert manager.results[-1] == ("12608260588", 8)
-    assert "12608260587" in manager.missing_draw_ids
+    assert manager.results[-1] == ("12608260578", 8)
+    assert "12608260577" in manager.missing_draw_ids
 
 
 def test_restored_session_keeps_missing_ids_missing_without_draw_id_history(
@@ -93,14 +94,14 @@ def test_restored_session_keeps_missing_ids_missing_without_draw_id_history(
 ):
     configure_session_storage(tmp_path, monkeypatch)
     start = 12608260571
-    results = [(str(start + offset), 1) for offset in range(16)]
-    results.append(("12608260588", 8))
+    results = [(str(start + offset), 1) for offset in range(6)]
+    results.append(("12608260578", 8))
     Storage().checkpoint_session("draw-12608260571", str(start), results)
 
     manager = SessionManager()
     update = manager.add_snapshot(
         Snapshot(
-            draw_id="12608260589",
+            draw_id="12608260579",
             timer=10,
             latest=4,
             history=[4, 8, 17, *([1] * 7)],
@@ -109,10 +110,10 @@ def test_restored_session_keeps_missing_ids_missing_without_draw_id_history(
 
     assert update.captured_current_draw
     assert manager.results[-2:] == [
-        ("12608260588", 8),
-        ("12608260589", 4),
+        ("12608260578", 8),
+        ("12608260579", 4),
     ]
-    assert "12608260587" in manager.missing_draw_ids
+    assert "12608260577" in manager.missing_draw_ids
 
 
 def test_session_manager_preserves_an_unrecoverable_partial_session(
@@ -127,24 +128,24 @@ def test_session_manager_preserves_an_unrecoverable_partial_session(
     manager = SessionManager()
     start = 12608260571
     manager.start(str(start))
-    for offset in range(16):
+    for offset in range(6):
         manager.add_result(str(start + offset), 1)
 
     update = manager.add_snapshot(
         Snapshot(
-            draw_id="12608260601",
+            draw_id="12608260581",
             timer=10,
             latest=2,
             history=[2] * 10,
         )
     )
     archive = manager.preserve_incomplete(
-        "12608260601",
+        "12608260581",
         update.unavailable_draw_ids,
     )
 
     assert update.unavailable_draw_ids == (
-        *(str(draw_id) for draw_id in range(12608260587, 12608260601)),
+        *(str(draw_id) for draw_id in range(12608260577, 12608260581)),
     )
     assert archive is not None
     assert archive.exists()

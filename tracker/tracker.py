@@ -132,7 +132,7 @@ class Tracker:
                         continue
 
                 # --------------------------------------------------
-                # ACTIVE: collect the fixed 30 draw IDs. Browser history verifies
+                # ACTIVE: collect the fixed 10 draw IDs. Browser history verifies
                 # that a new result rolled in, but cannot identify older draw IDs.
                 # --------------------------------------------------
 

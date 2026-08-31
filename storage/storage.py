@@ -263,7 +263,7 @@ class Storage:
     def append_live_result(self, draw_id: str, result: int) -> bool:
         """Atomically add one verified draw to the root live-results table.
 
-        The log is independent of 30-draw sessions. A repeated observation of
+        The log is independent of 10-draw sessions. A repeated observation of
         the same draw with the same value is ignored; a conflicting value is
         treated as an integrity error.
         """

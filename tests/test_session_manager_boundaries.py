@@ -24,17 +24,18 @@ def test_session_starts_only_on_draw_id_ending_in_one():
 
 def test_session_ends_only_after_every_required_draw_id_is_present(tmp_path, monkeypatch):
     manager = make_manager(tmp_path, monkeypatch)
-    manager.start_draw_id = "12608180151"
+    start_draw_id = "12608180151"
+    manager.start_draw_id = start_draw_id
     manager.running = True
 
     manager.results = [
-        (f"126081801{51 + i:02d}", i % 19)
-        for i in range(29)
+        (str(int(start_draw_id) + offset), offset % 19)
+        for offset in range(SESSION_DRAW_COUNT - 1)
     ]
 
     assert not manager.is_complete()
 
-    manager.results.append(("12608180180", 3))
+    manager.results.append((str(int(start_draw_id) + SESSION_DRAW_COUNT - 1), 3))
     assert len(manager.results) == SESSION_DRAW_COUNT
     assert manager.is_complete()
 
