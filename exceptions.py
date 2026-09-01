@@ -5,9 +5,6 @@ These exceptions distinguish between recoverable browser
 errors and fatal programming errors.
 """
 
-from playwright.sync_api import Error as PlaywrightError
-
-
 class TrackerError(Exception):
     """Base application exception."""
 
@@ -24,62 +21,17 @@ class RecoverableError(TrackerError):
     """
 
 
-class BrowserDisconnected(RecoverableError):
-    pass
-
-
 class FrameNotFound(RecoverableError):
-    pass
-
-
-class FrameLost(RecoverableError):
-    pass
+    """Raised when the Wheel Of Fortune frame cannot be found in time."""
 
 
 class DOMChanged(RecoverableError):
-    pass
+    """Raised when the game DOM changes during a browser read."""
 
 
 class SnapshotTimeout(RecoverableError):
-    pass
-
-
-class GameNotLoaded(RecoverableError):
-    pass
+    """Raised when a draw snapshot does not stabilize in time."""
 
 
 class TrackerStopped(TrackerError):
     """Raised internally when the dashboard asks the worker to stop."""
-
-
-# ----------------------------------------------------
-# Fatal
-# ----------------------------------------------------
-
-class FatalTrackerError(TrackerError):
-    """
-    Programming bugs.
-
-    Never reconnect.
-    """
-
-
-class InvalidSnapshot(FatalTrackerError):
-    pass
-
-
-class InvalidHistory(FatalTrackerError):
-    pass
-
-
-# ----------------------------------------------------
-# Helpers
-# ----------------------------------------------------
-
-RECOVERABLE_PLAYWRIGHT = (
-    PlaywrightError,
-)
-
-RECOVERABLE_TRACKER = (
-    RecoverableError,
-)

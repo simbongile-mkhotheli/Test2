@@ -1,5 +1,5 @@
 import pytest
-from models.models import Result, Snapshot
+from models.models import Snapshot
 from models.number_domain import (
     NUMBER_BANDS,
     NUMBER_COLORS,
@@ -109,16 +109,15 @@ def test_color_absence_streaks_reset_only_for_the_observed_color():
     }
 
 
-def test_result_model_rejects_invalid_result_number():
+def test_number_validation_rejects_invalid_result_number():
     with pytest.raises(ValueError, match="0 to 18"):
-        Result(draw_id="12608180151", number=-1)
+        validate_number(-1)
 
 
 def test_game_reader_rejects_snapshot_with_invalid_history_value():
     reader = GameReader.__new__(GameReader)
     snapshot = Snapshot(
         draw_id="12608180151",
-        timer=10,
         latest=19,
         history=[19] * 10,
     )
@@ -131,7 +130,7 @@ def test_storage_rejects_invalid_result_before_writing(tmp_path, monkeypatch):
     storage = Storage()
 
     with pytest.raises(ValueError, match="0 to 18"):
-        storage.append_result("12608180151", 19)
+        storage.append_live_result("12608180151", 19)
 
 
 def test_storage_rejects_invalid_historical_result(tmp_path, monkeypatch):
@@ -155,4 +154,10 @@ def test_session_manager_rejects_invalid_result_before_persisting(tmp_path, monk
     )
 
     with pytest.raises(ValueError, match="0 to 18"):
-        manager.add_result("12608180151", 19)
+        manager.add_snapshot(
+            Snapshot(
+                draw_id="12608180151",
+                latest=19,
+                history=[19],
+            )
+        )

@@ -1,3 +1,1 @@
-from .tracker import Tracker
-
-__all__ = ["Tracker"]
+"""Tracker implementation package."""

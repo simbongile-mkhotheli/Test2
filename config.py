@@ -57,8 +57,6 @@ GAME_CONTAINER = "section.game-content"
 
 DRAW_CODE_SELECTOR = '[data-qa="text-game-draw-code"]'
 
-TIMER_SELECTOR = '[data-qa="text-time-string"]'
-
 RESULTS_SELECTOR = '[data-qa="last-results-compact"]'
 
 

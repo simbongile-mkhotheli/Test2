@@ -282,17 +282,10 @@ class Storage:
         self._write_live_results([*results, (draw_id, result)])
         return True
 
-    def append_result(self, draw_id: str, result: int) -> None:
-        """Compatibility name for appending one independent live result."""
-        self.append_live_result(draw_id, result)
-
     def save_session(self, session_name: str, report: str):
         filename = SESSIONS_DIR / f"{session_name}.txt"
         self._atomic_write_text(filename, report)
         return filename
-
-    def clear_results(self):
-        self._write_live_results([])
 
     def read_results(self):
         if not RESULTS_FILE.exists():

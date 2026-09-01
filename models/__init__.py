@@ -1,3 +1,3 @@
-from .models import Snapshot, Result, Session
+from .models import Snapshot
 
-__all__ = ["Snapshot", "Result", "Session"]
+__all__ = ["Snapshot"]

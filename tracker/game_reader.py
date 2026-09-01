@@ -24,7 +24,6 @@ from config import (
     DRAW_POLL_INTERVAL,
     SNAPSHOT_STABILITY_TIMEOUT,
     SNAPSHOT_STABLE_READS,
-    TIMER_SELECTOR,
 )
 
 from exceptions import DOMChanged, SnapshotTimeout, TrackerStopped
@@ -46,26 +45,6 @@ class GameReader:
         return (
             self.game.locator(DRAW_CODE_SELECTOR).inner_text().replace("#", "").strip()
         )
-
-    # -------------------------------------------------
-
-    def timer(self) -> int:
-        """
-        Read the countdown timer.
-
-        During React updates the timer can briefly be blank.
-        That is a recoverable browser state.
-        """
-
-        text = self.game.locator(TIMER_SELECTOR).inner_text().strip()
-
-        if not text:
-            return -1
-
-        if not text.isdigit():
-            return -1
-
-        return int(text)
 
     # -------------------------------------------------
 
@@ -96,7 +75,6 @@ class GameReader:
 
         return Snapshot(
             draw_id=self.draw_id(),
-            timer=self.timer(),
             latest=history[0] if history else -1,
             history=history,
         )

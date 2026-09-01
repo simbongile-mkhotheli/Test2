@@ -33,22 +33,13 @@ class SessionManager:
         self._last_history: tuple[int, ...] | None = None
         self._restore_active_session()
 
-    # Compatibility properties retained for the tracker and existing callers.
     @property
     def session_name(self) -> str:
         return self.state.name
 
-    @session_name.setter
-    def session_name(self, value: str) -> None:
-        self.state.name = value
-
     @property
     def start_draw_id(self) -> str | None:
         return self.state.start_draw_id
-
-    @start_draw_id.setter
-    def start_draw_id(self, value: str | None) -> None:
-        self.state.start_draw_id = value
 
     @property
     def end_draw_id(self) -> str | None:
@@ -58,17 +49,9 @@ class SessionManager:
     def results(self) -> list[tuple[str, int]]:
         return self.state.results
 
-    @results.setter
-    def results(self, value: list[tuple[str, int]]) -> None:
-        self.state.commit_results(value)
-
     @property
     def running(self) -> bool:
         return self.state.running
-
-    @running.setter
-    def running(self, value: bool) -> None:
-        self.state.running = value
 
     @property
     def missing_draw_ids(self) -> tuple[str, ...]:
@@ -89,14 +72,6 @@ class SessionManager:
         self.presenter.restore(self.results, checkpoint.name)
         if self.is_complete():
             self.finish()
-
-    @staticmethod
-    def draw_position(draw_id: str) -> int:
-        return SessionState.draw_position(draw_id)
-
-    @staticmethod
-    def is_session_start_draw(draw_id: str) -> bool:
-        return SessionState.is_session_start_draw(draw_id)
 
     def is_complete(self) -> bool:
         return self.state.is_complete()
@@ -126,10 +101,10 @@ class SessionManager:
                 on_snapshot(snapshot)
             self.presenter.waiting_draw(
                 snapshot.draw_id,
-                self.draw_position(snapshot.draw_id),
+                SessionState.draw_position(snapshot.draw_id),
             )
 
-            if self.is_session_start_draw(snapshot.draw_id):
+            if SessionState.is_session_start_draw(snapshot.draw_id):
                 self.presenter.session_boundary_found()
                 return snapshot
 
@@ -183,21 +158,6 @@ class SessionManager:
             unavailable_draw_ids=unavailable_draw_ids,
         )
 
-    def add_result(self, draw_id: str, result: int) -> None:
-        """Add one direct result; snapshot ingestion is preferred at runtime."""
-        updated_results = self.state.proposed_results(draw_id, result)
-        if updated_results is None:
-            return
-
-        self.storage.checkpoint_session(
-            self.session_name,
-            self.start_draw_id or "",
-            updated_results,
-            self._last_history,
-        )
-        self.state.commit_results(updated_results)
-        self.presenter.result_recorded(self.results)
-
     def preserve_incomplete(
         self,
         observed_draw_id: str,
@@ -246,9 +206,6 @@ class SessionManager:
         self._last_history = None
         self.presenter.reset()
         self.presenter.session_finished(report_text, filename)
-
-    def total_results(self) -> int:
-        return len(self.results)
 
     def last_draw_id(self) -> str:
         return self.state.last_draw_id()

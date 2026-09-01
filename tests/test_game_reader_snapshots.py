@@ -9,7 +9,6 @@ from tracker.game_reader import GameReader
 def make_snapshot(draw_id: str, history: list[int]) -> Snapshot:
     return Snapshot(
         draw_id=draw_id,
-        timer=10,
         latest=history[0],
         history=history,
     )

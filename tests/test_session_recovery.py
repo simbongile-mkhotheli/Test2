@@ -11,6 +11,18 @@ def configure_session_storage(tmp_path, monkeypatch):
         "storage.storage.ACTIVE_SESSION_FILE",
         tmp_path / "sessions" / ".active-session.json",
     )
+
+
+def add_snapshot_result(manager: SessionManager, draw_id: str, result: int) -> None:
+    manager.add_snapshot(
+        Snapshot(
+            draw_id=draw_id,
+            latest=result,
+            history=[result],
+        )
+    )
+
+
 def test_session_manager_resumes_interrupted_partial_session(tmp_path, monkeypatch):
     configure_session_storage(tmp_path, monkeypatch)
     results = [
@@ -52,9 +64,9 @@ def test_session_manager_continues_a_restored_session_after_skipped_draw_ids(
     configure_session_storage(tmp_path, monkeypatch)
     manager = SessionManager()
     manager.start("12608180151")
-    manager.add_result("12608180151", 15)
+    add_snapshot_result(manager, "12608180151", 15)
 
-    manager.add_result("12608180153", 14)
+    add_snapshot_result(manager, "12608180153", 14)
 
     assert manager.is_running()
     assert manager.results == [
@@ -72,12 +84,11 @@ def test_session_manager_records_only_the_current_draw_from_a_verified_snapshot(
     start = 12608260571
     manager.start(str(start))
     for offset in range(6):
-        manager.add_result(str(start + offset), 1)
+        add_snapshot_result(manager, str(start + offset), 1)
 
     update = manager.add_snapshot(
         Snapshot(
             draw_id="12608260578",
-            timer=10,
             latest=8,
             history=[8, 17, *([1] * 8)],
         )
@@ -102,7 +113,6 @@ def test_restored_session_keeps_missing_ids_missing_without_draw_id_history(
     update = manager.add_snapshot(
         Snapshot(
             draw_id="12608260579",
-            timer=10,
             latest=4,
             history=[4, 8, 17, *([1] * 7)],
         )
@@ -129,12 +139,11 @@ def test_session_manager_preserves_an_unrecoverable_partial_session(
     start = 12608260571
     manager.start(str(start))
     for offset in range(6):
-        manager.add_result(str(start + offset), 1)
+        add_snapshot_result(manager, str(start + offset), 1)
 
     update = manager.add_snapshot(
         Snapshot(
             draw_id="12608260581",
-            timer=10,
             latest=2,
             history=[2] * 10,
         )
