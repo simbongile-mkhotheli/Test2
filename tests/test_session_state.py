@@ -26,20 +26,20 @@ def test_state_proposes_results_without_mutating_before_persistence():
     assert state.results == proposed
 
 
-def test_state_accepts_new_observed_draw_ids_after_a_skip():
+def test_state_rejects_an_observed_draw_after_a_skip():
     state = SessionState(draw_count=SESSION_DRAW_COUNT)
     state.start("12608180151")
     state.commit_results(state.proposed_results("12608180151", 15))
 
     proposed = state.proposed_results("12608180153", 14)
 
-    assert proposed == [
-        ("12608180151", 15),
-        ("12608180153", 14),
-    ]
+    assert proposed is None
+    assert state.results == [("12608180151", 15)]
+    assert state.next_draw_id == "12608180152"
+    assert state.incomplete_missing_draw_ids("12608180153") == ("12608180152",)
 
 
-def test_state_never_assigns_an_older_history_value_to_a_draw_id():
+def test_state_does_not_append_a_later_draw_after_a_gap():
     state = SessionState(draw_count=SESSION_DRAW_COUNT)
     start = 12608260571
     state.start(str(start))
@@ -50,10 +50,9 @@ def test_state_never_assigns_an_older_history_value_to_a_draw_id():
         [8, 17, *([1] * 8)],
     )
 
-    assert proposed is not None
-    assert dict(proposed)["12608260578"] == 8
-    assert "12608260577" not in dict(proposed)
-    assert len(proposed) == 7
+    assert proposed is None
+    assert state.results[-1] == ("12608260576", 1)
+    assert state.incomplete_missing_draw_ids("12608260578") == ("12608260577",)
 
 
 def test_later_history_values_cannot_overwrite_a_checkpointed_draw():

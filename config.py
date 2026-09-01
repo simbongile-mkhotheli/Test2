@@ -48,6 +48,9 @@ SNAPSHOT_STABLE_READS = 3
 RANGE_ABSENCE_ALERT_AT = 10
 COLOR_ABSENCE_ALERT_AT = 24
 
+# Alert when the same session position is red in two consecutive sessions.
+POSITION_COLOR_ALERT_COLOR = "Red"
+
 
 # -----------------------------------------------------
 # Selectors

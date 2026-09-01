@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from config import SESSION_DRAW_COUNT
-from storage.storage import Storage
+from config import POSITION_COLOR_ALERT_COLOR, SESSION_DRAW_COUNT
+from models.number_domain import number_color
+from storage.storage import CompletedSession, Storage
 from tracker.session_presenter import SessionPresenter
 from tracker.session_state import SessionState
 from ui.events import EventBus
@@ -31,6 +32,9 @@ class SessionManager:
         self.state = SessionState(SESSION_DRAW_COUNT)
         self.presenter = SessionPresenter(events)
         self._last_history: tuple[int, ...] | None = None
+        self._previous_completed_sessions: (
+            tuple[CompletedSession, CompletedSession] | None
+        ) = None
         self._restore_active_session()
 
     @property
@@ -63,15 +67,44 @@ class SessionManager:
         if checkpoint is None:
             return
 
-        self.state.restore(
-            checkpoint.name,
-            checkpoint.start_draw_id,
-            checkpoint.results,
-        )
+        try:
+            self.state.restore(
+                checkpoint.name,
+                checkpoint.start_draw_id,
+                checkpoint.results,
+            )
+        except ValueError:
+            missing_draw_ids = self._first_checkpoint_gap(checkpoint)
+            archive_path = self.storage.preserve_incomplete_session(
+                checkpoint.results[-1][0],
+                missing_draw_ids,
+            )
+            self.state.clear()
+            self.presenter.session_incomplete(
+                len(checkpoint.results),
+                SESSION_DRAW_COUNT,
+                checkpoint.start_draw_id,
+                missing_draw_ids,
+                archive_path,
+            )
+            return
+
         self._last_history = checkpoint.last_history
+        self._load_previous_completed_sessions()
         self.presenter.restore(self.results, checkpoint.name)
+        self._alert_upcoming_repeated_position_color(len(self.results) + 1)
         if self.is_complete():
             self.finish()
+
+    @staticmethod
+    def _first_checkpoint_gap(checkpoint) -> tuple[str, ...]:
+        """Return the earliest missing ID from an old sparse checkpoint."""
+        expected_draw = int(checkpoint.start_draw_id)
+        for draw_id, _ in checkpoint.results:
+            if int(draw_id) != expected_draw:
+                return (str(expected_draw),)
+            expected_draw += 1
+        return (str(expected_draw),)
 
     def is_complete(self) -> bool:
         return self.state.is_complete()
@@ -111,6 +144,7 @@ class SessionManager:
     def start(self, start_draw_id: str) -> None:
         """Create a session and checkpoint its initial empty state."""
         self.state.start(start_draw_id)
+        self._load_previous_completed_sessions()
         self.storage.checkpoint_session(
             self.session_name,
             start_draw_id,
@@ -124,6 +158,7 @@ class SessionManager:
             self.end_draw_id or "",
             SESSION_DRAW_COUNT,
         )
+        self._alert_upcoming_repeated_position_color(position=1)
 
     def add_snapshot(self, snapshot) -> SnapshotIngest:
         """Store one verified snapshot under its own draw ID."""
@@ -150,6 +185,7 @@ class SessionManager:
             )
 
             self.presenter.result_recorded(self.results)
+            self._alert_upcoming_repeated_position_color(len(self.results) + 1)
 
         unavailable_draw_ids = self.state.incomplete_missing_draw_ids(snapshot.draw_id)
         return SnapshotIngest(
@@ -157,6 +193,35 @@ class SessionManager:
             accepted_draw_ids=accepted_draw_ids,
             unavailable_draw_ids=unavailable_draw_ids,
         )
+
+    def _load_previous_completed_sessions(self) -> None:
+        """Load only the two reports directly before this session."""
+        start_draw_id = self.start_draw_id
+        self._previous_completed_sessions = (
+            self.storage.two_consecutive_completed_sessions_before(start_draw_id)
+            if start_draw_id is not None
+            else None
+        )
+
+    def _alert_upcoming_repeated_position_color(self, position: int) -> None:
+        """Alert before a position red in both immediately prior sessions."""
+        previous = self._previous_completed_sessions
+        if previous is None or not 1 <= position <= SESSION_DRAW_COUNT:
+            return
+
+        older_session, newer_session = previous
+        _, older_result = older_session.results[position - 1]
+        _, newer_result = newer_session.results[position - 1]
+        if (
+            number_color(older_result) == POSITION_COLOR_ALERT_COLOR
+            and number_color(newer_result) == POSITION_COLOR_ALERT_COLOR
+        ):
+            self.presenter.upcoming_position_color_alert(
+                position,
+                POSITION_COLOR_ALERT_COLOR,
+                older_session.name,
+                newer_session.name,
+            )
 
     def preserve_incomplete(
         self,
@@ -175,6 +240,7 @@ class SessionManager:
         )
         self.state.clear()
         self._last_history = None
+        self._previous_completed_sessions = None
         self.presenter.reset()
         self.presenter.session_incomplete(
             captured_count,
@@ -204,6 +270,7 @@ class SessionManager:
         self.storage.clear_active_session()
         self.state.clear()
         self._last_history = None
+        self._previous_completed_sessions = None
         self.presenter.reset()
         self.presenter.session_finished(report_text, filename)
 

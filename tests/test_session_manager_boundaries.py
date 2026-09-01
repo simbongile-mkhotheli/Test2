@@ -12,8 +12,8 @@ def make_manager(tmp_path, monkeypatch) -> SessionManager:
     return SessionManager()
 
 
-def add_snapshot_result(manager: SessionManager, draw_id: str, result: int) -> None:
-    manager.add_snapshot(
+def add_snapshot_result(manager: SessionManager, draw_id: str, result: int):
+    return manager.add_snapshot(
         Snapshot(
             draw_id=draw_id,
             latest=result,
@@ -66,10 +66,8 @@ def test_session_keeps_a_partial_session_when_a_draw_id_is_missing(
     manager.storage.checkpoint_session = lambda *args: None
 
     add_snapshot_result(manager, "12608180151", 15)
-    add_snapshot_result(manager, "12608180153", 14)
+    update = add_snapshot_result(manager, "12608180153", 14)
 
-    assert manager.results == [
-        ("12608180151", 15),
-        ("12608180153", 14),
-    ]
-    assert manager.missing_draw_ids[0] == "12608180152"
+    assert not update.captured_current_draw
+    assert update.unavailable_draw_ids == ("12608180152",)
+    assert manager.results == [("12608180151", 15)]

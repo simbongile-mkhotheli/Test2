@@ -68,6 +68,25 @@ class SessionPresenter:
     ) -> None:
         self._publish_session_update(results)
 
+    def upcoming_position_color_alert(
+        self,
+        position: int,
+        color: str,
+        older_session_name: str,
+        newer_session_name: str,
+    ) -> None:
+        """Notify before a position whose two-session color pattern repeats."""
+        self._publish(
+            "alert",
+            alert_type="POSITION_COLOR",
+            label=f"Position {position}",
+            message=(
+                f"UPCOMING POSITION ALERT | Position {position} was {color} "
+                f"in the previous two consecutive sessions "
+                f"{older_session_name} and {newer_session_name}."
+            ),
+        )
+
     def session_incomplete(
         self,
         captured_count: int,

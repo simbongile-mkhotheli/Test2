@@ -19,6 +19,8 @@ from models.number_domain import validate_number
 
 _DRAW_LINE_RE = re.compile(r"^\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
 _CSV_LINE_RE = re.compile(r"^\s*(\d+)\s*,\s*(-?\d+)\s*$")
+_SESSION_REPORT_NAME_RE = re.compile(r"^draw-(\d+)\.txt$")
+_SESSION_REPORT_DRAW_RE = re.compile(r"^\s*(\d+)\s+(\d+)\s+(-?\d+)\s*$")
 _RESULTS_LOG_HEADER = (
     "Pos | Draw ID             | Result",
     "----+---------------------+-------",
@@ -33,6 +35,14 @@ class ActiveSession:
     start_draw_id: str
     results: list[tuple[str, int]]
     last_history: tuple[int, ...] | None
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedSession:
+    """A finalized session report used for cross-session position alerts."""
+
+    name: str
+    results: tuple[tuple[str, int], ...]
 
 
 class Storage:
@@ -286,6 +296,72 @@ class Storage:
         filename = SESSIONS_DIR / f"{session_name}.txt"
         self._atomic_write_text(filename, report)
         return filename
+
+    def two_consecutive_completed_sessions_before(
+        self,
+        start_draw_id: str,
+    ) -> tuple[CompletedSession, CompletedSession] | None:
+        """Return the two sessions immediately before *start_draw_id*.
+
+        Both reports must be complete and directly adjacent in the draw-ID
+        sequence. A missing, partial, or malformed report resets the position
+        pattern instead of letting older sessions create a false alert.
+        """
+        if not isinstance(start_draw_id, str) or not start_draw_id.isdigit():
+            raise ValueError(f"Invalid session start draw ID: {start_draw_id!r}")
+        if start_draw_id[-1] != "1":
+            raise ValueError(
+                "Session start draw ID must end in 1: "
+                f"{start_draw_id}"
+            )
+
+        current_start = int(start_draw_id)
+        previous_starts = (
+            current_start - (2 * SESSION_DRAW_COUNT),
+            current_start - SESSION_DRAW_COUNT,
+        )
+        sessions: list[CompletedSession] = []
+        for previous_start in previous_starts:
+            path = SESSIONS_DIR / f"draw-{previous_start}.txt"
+            if not path.exists():
+                return None
+            results = self._read_completed_session_results(path)
+            if not results:
+                return None
+            sessions.append(CompletedSession(path.stem, results))
+
+        return sessions[0], sessions[1]
+
+    @staticmethod
+    def _read_completed_session_results(path: Path) -> tuple[tuple[str, int], ...]:
+        """Read one complete, ordered session report, or reject it."""
+        name_match = _SESSION_REPORT_NAME_RE.match(path.name)
+        if name_match is None:
+            return ()
+
+        results: list[tuple[str, int]] = []
+        expected_position = 1
+        expected_draw_id = int(name_match.group(1))
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = _SESSION_REPORT_DRAW_RE.match(line)
+            if match is None:
+                continue
+
+            position_text, draw_id, result_text = match.groups()
+            position = int(position_text)
+            if position != expected_position or int(draw_id) != expected_draw_id:
+                return ()
+            try:
+                result = validate_number(int(result_text))
+            except ValueError:
+                return ()
+            results.append((draw_id, result))
+            expected_position += 1
+            expected_draw_id += 1
+
+        if len(results) != SESSION_DRAW_COUNT:
+            return ()
+        return tuple(results)
 
     def read_results(self):
         if not RESULTS_FILE.exists():

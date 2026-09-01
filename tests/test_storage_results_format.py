@@ -2,6 +2,7 @@ import pytest
 
 from config import RESULTS_FILE, SESSIONS_DIR
 from storage.storage import Storage
+from tracker.session_presenter import SessionPresenter
 
 
 def test_default_results_log_is_stored_at_the_project_root():
@@ -134,3 +135,64 @@ def test_live_results_rejects_conflicting_repeated_draw(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="disagrees"):
         storage.append_live_result("12608180151", 16)
+
+
+def test_storage_reads_the_two_consecutive_sessions_before_the_current_one(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.SESSIONS_DIR", tmp_path / "sessions")
+    storage = Storage()
+    presenter = SessionPresenter()
+
+    storage.save_session(
+        "draw-12608180151",
+        presenter.report(
+            "draw-12608180151",
+            [
+                (str(12608180151 + offset), (offset + 1) % 19)
+                for offset in range(10)
+            ],
+        ),
+    )
+    storage.save_session(
+        "draw-12608180161",
+        presenter.report(
+            "draw-12608180161",
+            [
+                (str(12608180161 + offset), (offset + 2) % 19)
+                for offset in range(10)
+            ],
+        ),
+    )
+
+    previous = storage.two_consecutive_completed_sessions_before("12608180171")
+
+    assert previous is not None
+    older, newer = previous
+    assert older.name == "draw-12608180151"
+    assert newer.name == "draw-12608180161"
+    assert newer.results == tuple(
+        (str(12608180161 + offset), (offset + 2) % 19)
+        for offset in range(10)
+    )
+
+
+def test_storage_resets_the_position_pattern_when_a_prior_session_is_missing(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.SESSIONS_DIR", tmp_path / "sessions")
+    storage = Storage()
+    session = "draw-12608180161"
+    storage.save_session(
+        session,
+        SessionPresenter().report(
+            session,
+            [(str(12608180161 + offset), 3) for offset in range(10)],
+        ),
+    )
+
+    assert storage.two_consecutive_completed_sessions_before("12608180171") is None

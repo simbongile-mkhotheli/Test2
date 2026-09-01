@@ -12,6 +12,12 @@ Sessions are defined by draw IDs, not by the computer clock. A session starts
 at a draw ID ending in `1` and contains the next 10 consecutive IDs. For
 example, a session beginning at `12608260571` ends at `12608260580`.
 
+Session rows are strictly sequential. If a required draw is missed—for
+example, the next verified draw is `...3` while `...2` was required—the
+tracker does not append `...3` to that session. It archives the partial
+session and waits for the next `...1` boundary, rather than guessing a value
+for the missed draw or creating a report with skipped draw IDs.
+
 The tracker can be launched at any time. It ignores draws until the next valid
 `...1` boundary. The compact browser history is used to verify that a result
 has rolled in, but it is not used to assign values to older draw IDs because
@@ -68,6 +74,14 @@ after the group appears again, and an ongoing alert is restored from
 `results.txt` when tracking starts. Zero extends every range and color absence
 streak because it is outside all three ranges and colors.
 
+Before each position is captured, the tracker checks the same position in the
+two immediately preceding completed sessions. If both were Red, the dashboard
+shows an `UPCOMING POSITION ALERT` before the current position is captured.
+The pattern can continue into later sessions, but it resets whenever either
+prior position is not Red or a required consecutive session report is missing.
+This comparison uses saved session reports, so it also works after restarting
+the program.
+
 ## Desktop dashboard
 
 Run `python main.py` to open the dashboard and the Playwright browser. Open
@@ -83,9 +97,9 @@ restart resumes a partial session or finalizes a completed checkpoint without
 duplicating its session report. The root log is written directly from verified
 browser draws, rather than from session checkpoints.
 
-If any required draw ID was not captured by the end of the 10-draw session,
-the session is saved under `sessions/incomplete/` for review, including its
-captured-result counts and missing IDs.
+If any required draw ID is missed or was not captured by the end of the
+10-draw session, the session is saved under `sessions/incomplete/` for review,
+including its captured-result counts and missing IDs.
 
 ## Requirements
 

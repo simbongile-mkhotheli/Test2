@@ -76,3 +76,25 @@ def test_presenter_publishes_session_counts_for_the_dashboard():
         "Gray": 1,
         "Red": 1,
     }
+
+
+def test_presenter_publishes_an_upcoming_position_color_alert():
+    events = EventBus()
+    presenter = SessionPresenter(events)
+    presenter.session_started("draw-12608180171", "12608180171", "12608180180", 10)
+    presenter.upcoming_position_color_alert(
+        2,
+        "Red",
+        "draw-12608180151",
+        "draw-12608180161",
+    )
+
+    alerts = [event for event in events.drain() if event.kind == "alert"]
+
+    assert len(alerts) == 1
+    assert alerts[0].payload["alert_type"] == "POSITION_COLOR"
+    assert alerts[0].payload["label"] == "Position 2"
+    assert alerts[0].payload["message"] == (
+        "UPCOMING POSITION ALERT | Position 2 was Red in the previous two "
+        "consecutive sessions draw-12608180151 and draw-12608180161."
+    )

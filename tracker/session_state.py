@@ -46,6 +46,17 @@ class SessionState:
         return tuple(str(start + offset) for offset in range(self.draw_count))
 
     @property
+    def next_draw_id(self) -> str | None:
+        """Return the only draw ID that may be accepted next."""
+        if self.start_draw_id is None:
+            return None
+
+        next_draw = int(self.start_draw_id) + len(self.results)
+        if self.end_draw_id is not None and next_draw > int(self.end_draw_id):
+            return None
+        return str(next_draw)
+
+    @property
     def missing_draw_ids(self) -> tuple[str, ...]:
         """Return required draw IDs that have not been captured."""
         known = {draw_id for draw_id, _ in self.results}
@@ -106,17 +117,24 @@ class SessionState:
         return self.proposed_results(observed_draw_id, history[0])
 
     def incomplete_missing_draw_ids(self, observed_draw_id: str) -> tuple[str, ...]:
-        """Return missing IDs once the fixed session window has ended.
+        """Return unavailable IDs after a gap or the session's end.
 
         Browser history lacks draw IDs, so it cannot repair a missing row
-        safely. Once the end ID is observed, any remaining required draw IDs
-        make the session incomplete.
+        safely. A later observed ID therefore makes the next required ID
+        unrecoverable immediately; the session must stop before it can record
+        out-of-order results.
         """
         if not observed_draw_id or not observed_draw_id.isdigit():
             raise ValueError(f"Invalid observed draw ID: {observed_draw_id!r}")
-        if self.end_draw_id is None:
+        if self.end_draw_id is None or self.next_draw_id is None:
             return ()
-        if int(observed_draw_id) < int(self.end_draw_id):
+
+        observed = int(observed_draw_id)
+        next_required = int(self.next_draw_id)
+        end = int(self.end_draw_id)
+        if observed > next_required and observed <= end:
+            return (self.next_draw_id,)
+        if observed < end:
             return ()
         return self.missing_draw_ids
 
@@ -124,15 +142,14 @@ class SessionState:
         self,
         candidates: Sequence[tuple[str, int]],
     ) -> list[tuple[str, int]] | None:
-        """Merge in-boundary candidate rows without overwriting known results."""
+        """Accept only the next consecutive draw ID in the session."""
         if not self.running:
             raise RuntimeError("Cannot add a result when no session is running")
         if self.start_draw_id is None or self.end_draw_id is None:
             raise RuntimeError("Running session is missing draw boundaries")
 
-        start = int(self.start_draw_id)
         end = int(self.end_draw_id)
-        merged = dict(self.results)
+        merged = list(self.results)
         changed = False
 
         for draw_id, result in candidates:
@@ -141,49 +158,49 @@ class SessionState:
                 raise ValueError(f"Invalid draw ID: {draw_id!r}")
 
             draw_number = int(draw_id)
-            if draw_number < start or draw_number > end:
+            expected_draw_id = self.next_draw_id if not changed else str(
+                int(self.start_draw_id) + len(merged)
+            )
+            if expected_draw_id is None or draw_number != int(expected_draw_id):
                 continue
 
-            known_result = merged.get(draw_id)
-            if known_result is None:
-                merged[draw_id] = result
-                changed = True
-            elif known_result != result:
-                # Preserve the first stable, checkpointed value for this draw.
-                # A later browser repaint must never overwrite it or crash the
-                # tracker; the reader only passes newly observed draw IDs.
+            if draw_number > end:
                 continue
+            merged.append((draw_id, result))
+            changed = True
 
         if not changed:
             return None
 
-        return sorted(merged.items(), key=lambda row: int(row[0]))
+        return merged
 
     def commit_results(self, results: Sequence[tuple[str, int]]) -> None:
         """Apply result rows that have already been durably checkpointed."""
         if self.start_draw_id is None or self.end_draw_id is None:
             raise RuntimeError("Session boundaries must be set before results")
 
-        start = int(self.start_draw_id)
         end = int(self.end_draw_id)
-        committed: dict[str, int] = {}
+        expected_draw = int(self.start_draw_id)
+        committed: list[tuple[str, int]] = []
         for draw_id, result in results:
             if not isinstance(draw_id, str) or not draw_id.isdigit():
                 raise ValueError(f"Invalid draw ID: {draw_id!r}")
-            if not start <= int(draw_id) <= end:
+            draw_number = int(draw_id)
+            if not expected_draw <= draw_number <= end:
                 raise ValueError(
                     f"Draw {draw_id} is outside the session boundary "
                     f"{self.start_draw_id}-{self.end_draw_id}"
                 )
+            if draw_number != expected_draw:
+                raise ValueError(
+                    "Session draw IDs must be consecutive: "
+                    f"expected {expected_draw}, got {draw_id}"
+                )
             result = validate_number(result)
-            previous = committed.get(draw_id)
-            if previous is not None and previous != result:
-                raise ValueError(f"Conflicting results for draw {draw_id}")
-            if previous is not None:
-                raise ValueError(f"Duplicate result for draw {draw_id}")
-            committed[draw_id] = result
+            committed.append((draw_id, result))
+            expected_draw += 1
 
-        self.results = sorted(committed.items(), key=lambda row: int(row[0]))
+        self.results = committed
 
     def is_complete(self) -> bool:
         """Return True only when every required draw ID has a result."""
