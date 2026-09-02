@@ -94,6 +94,13 @@ the following position and the number of matching sessions. For example, before
 position 5 it uses positions 3 and 4 only: `Black → Gray`. Range summaries work
 the same way. These are historical counts only, not guaranteed outcomes.
 
+Every resolved tendency is written to `tendencies.txt`. Each row records the
+two-draw pattern, its historical distribution, the actual next color or range,
+and a verdict. When the highest historical percentage is tied, every tied
+outcome is treated as correct—for example, an actual Red or Gray is `CORRECT`
+for a Red 50% / Gray 50% tendency. The file also records the consecutive
+correct streak for that exact pattern and tendency type.
+
 ## Desktop dashboard
 
 Run `python main.py` to open the dashboard and the Playwright browser. Open

@@ -23,6 +23,20 @@ class HistoricalTendency:
     outcomes: tuple[tuple[str, int], ...]
 
 
+@dataclass(frozen=True, slots=True)
+class TendencyEvaluation:
+    """One resolved historical tendency and its observed outcome."""
+
+    kind: str
+    target_position: int
+    pattern: tuple[str, ...]
+    sample_size: int
+    outcomes: tuple[tuple[str, int], ...]
+    favored_outcomes: tuple[str, ...]
+    actual_outcome: str
+    verdict: str
+
+
 class SessionTendencyAnalyzer:
     """Compare the latest two session positions with completed-session history."""
 
@@ -47,6 +61,46 @@ class SessionTendencyAnalyzer:
                 self._range_label,
                 _RANGE_OUTCOMES,
             ),
+        )
+
+    def evaluate(
+        self,
+        tendency: HistoricalTendency | None,
+        actual_result: int,
+    ) -> TendencyEvaluation | None:
+        """Resolve a tendency after its target draw has been captured."""
+        if tendency is None:
+            return None
+
+        classify = (
+            self._color_label
+            if tendency.kind == "Color"
+            else self._range_label
+        )
+        actual_outcome = classify(actual_result)
+        if tendency.sample_size == 0:
+            favored_outcomes: tuple[str, ...] = ()
+            verdict = "NO_HISTORY"
+        else:
+            highest_count = max(count for _, count in tendency.outcomes)
+            favored_outcomes = tuple(
+                label
+                for label, count in tendency.outcomes
+                if count == highest_count
+            )
+            verdict = (
+                "CORRECT" if actual_outcome in favored_outcomes else "INCORRECT"
+            )
+
+        return TendencyEvaluation(
+            kind=tendency.kind,
+            target_position=tendency.target_position,
+            pattern=tendency.prefix,
+            sample_size=tendency.sample_size,
+            outcomes=tendency.outcomes,
+            favored_outcomes=favored_outcomes,
+            actual_outcome=actual_outcome,
+            verdict=verdict,
         )
 
     @staticmethod

@@ -1,4 +1,4 @@
-from tracker.session_tendency import SessionTendencyAnalyzer
+from tracker.session_tendency import HistoricalTendency, SessionTendencyAnalyzer
 
 
 def test_tendency_uses_matching_prefixes_and_reports_the_next_distribution():
@@ -82,3 +82,26 @@ def test_tendency_adapts_to_only_the_two_latest_positions():
     assert range_tendency is not None
     assert range_tendency.prefix == ("1-6", "13-18")
     assert range_tendency.sample_size == 2
+
+
+def test_tied_highest_outcomes_are_each_recorded_as_correct():
+    analyzer = SessionTendencyAnalyzer()
+    tendency = HistoricalTendency(
+        kind="Color",
+        target_position=3,
+        prefix=("Red", "Black"),
+        sample_size=2,
+        outcomes=(("Black", 0), ("Gray", 1), ("Red", 1), ("Zero", 0)),
+    )
+
+    red_evaluation = analyzer.evaluate(tendency, 3)
+    gray_evaluation = analyzer.evaluate(tendency, 2)
+    black_evaluation = analyzer.evaluate(tendency, 1)
+
+    assert red_evaluation is not None
+    assert red_evaluation.favored_outcomes == ("Gray", "Red")
+    assert red_evaluation.verdict == "CORRECT"
+    assert gray_evaluation is not None
+    assert gray_evaluation.verdict == "CORRECT"
+    assert black_evaluation is not None
+    assert black_evaluation.verdict == "INCORRECT"

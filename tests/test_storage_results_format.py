@@ -137,6 +137,65 @@ def test_live_results_rejects_conflicting_repeated_draw(tmp_path, monkeypatch):
         storage.append_live_result("12608180151", 16)
 
 
+def test_tendency_log_records_tied_outcomes_and_tracks_a_pattern_streak(
+    tmp_path,
+    monkeypatch,
+):
+    tendencies_file = tmp_path / "tendencies.txt"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.TENDENCIES_FILE", tendencies_file)
+    storage = Storage()
+    outcomes = (("Black", 0), ("Gray", 1), ("Red", 1), ("Zero", 0))
+
+    assert storage.append_tendency_evaluation(
+        "draw-12608180171",
+        3,
+        "Color",
+        ("Red", "Black"),
+        2,
+        outcomes,
+        "Red",
+        "CORRECT",
+    )
+    assert storage.append_tendency_evaluation(
+        "draw-12608180181",
+        3,
+        "Color",
+        ("Red", "Black"),
+        2,
+        outcomes,
+        "Gray",
+        "CORRECT",
+    )
+    assert storage.append_tendency_evaluation(
+        "draw-12608180191",
+        3,
+        "Color",
+        ("Red", "Black"),
+        2,
+        outcomes,
+        "Black",
+        "INCORRECT",
+    )
+    assert not storage.append_tendency_evaluation(
+        "draw-12608180191",
+        3,
+        "Color",
+        ("Red", "Black"),
+        2,
+        outcomes,
+        "Black",
+        "INCORRECT",
+    )
+
+    rows = tendencies_file.read_text(encoding="utf-8")
+    assert "Actual | Verdict | Correct streak" in rows
+    assert "Red | CORRECT | 1" in rows
+    assert "Gray | CORRECT | 2" in rows
+    assert "Black | INCORRECT | 0" in rows
+    assert rows.count("draw-12608180191 | 3 | Color") == 1
+
+
 def test_storage_reads_the_two_consecutive_sessions_before_the_current_one(
     tmp_path,
     monkeypatch,

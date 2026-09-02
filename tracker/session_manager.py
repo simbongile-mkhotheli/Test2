@@ -3,12 +3,16 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from config import POSITION_COLOR_ALERT_COLOR, SESSION_DRAW_COUNT
+from config import (
+    POSITION_COLOR_ALERT_COLOR,
+    SESSION_DRAW_COUNT,
+    TENDENCY_LOOKBACK_DRAWS,
+)
 from models.number_domain import number_color
 from storage.storage import CompletedSession, Storage
 from tracker.session_presenter import SessionPresenter
 from tracker.session_state import SessionState
-from tracker.session_tendency import SessionTendencyAnalyzer
+from tracker.session_tendency import HistoricalTendency, SessionTendencyAnalyzer
 from ui.events import EventBus
 
 
@@ -95,6 +99,7 @@ class SessionManager:
         self._last_history = checkpoint.last_history
         self._load_completed_session_history()
         self.presenter.restore(self.results, checkpoint.name)
+        self._synchronize_tendency_evaluations()
         self._publish_historical_tendencies()
         self._alert_upcoming_repeated_position_color(len(self.results) + 1)
         if self.is_complete():
@@ -167,6 +172,7 @@ class SessionManager:
     def add_snapshot(self, snapshot) -> SnapshotIngest:
         """Store one verified snapshot under its own draw ID."""
         known_draw_ids = {draw_id for draw_id, _ in self.results}
+        pending_tendencies = self._historical_tendencies()
         updated_results = self.state.proposed_result_from_snapshot(
             snapshot.draw_id,
             snapshot.history,
@@ -188,6 +194,7 @@ class SessionManager:
                 if draw_id not in known_draw_ids
             )
 
+            self._record_tendency_evaluations(pending_tendencies, snapshot.latest)
             self.presenter.result_recorded(self.results)
             self._publish_historical_tendencies()
             self._alert_upcoming_repeated_position_color(len(self.results) + 1)
@@ -215,11 +222,51 @@ class SessionManager:
 
     def _publish_historical_tendencies(self) -> None:
         """Show what completed sessions historically did after this prefix."""
-        color_tendency, range_tendency = self.tendency_analyzer.analyze(
+        color_tendency, range_tendency = self._historical_tendencies()
+        self.presenter.historical_tendencies(color_tendency, range_tendency)
+
+    def _historical_tendencies(
+        self,
+    ) -> tuple[HistoricalTendency | None, HistoricalTendency | None]:
+        """Calculate the next-position tendencies for the current draw prefix."""
+        return self.tendency_analyzer.analyze(
             self.results,
             tuple(session.results for session in self._completed_sessions),
         )
-        self.presenter.historical_tendencies(color_tendency, range_tendency)
+
+    def _record_tendency_evaluations(
+        self,
+        tendencies: tuple[HistoricalTendency | None, HistoricalTendency | None],
+        actual_result: int,
+    ) -> None:
+        """Persist color and range verdicts after their target draw is durable."""
+        for tendency in tendencies:
+            evaluation = self.tendency_analyzer.evaluate(tendency, actual_result)
+            if evaluation is None:
+                continue
+            self.storage.append_tendency_evaluation(
+                self.session_name,
+                evaluation.target_position,
+                evaluation.kind,
+                evaluation.pattern,
+                evaluation.sample_size,
+                evaluation.outcomes,
+                evaluation.actual_outcome,
+                evaluation.verdict,
+            )
+
+    def _synchronize_tendency_evaluations(self) -> None:
+        """Recover any tendency rows interrupted after a checkpoint commit."""
+        for captured_count in range(
+            TENDENCY_LOOKBACK_DRAWS + 1,
+            len(self.results) + 1,
+        ):
+            tendencies = self.tendency_analyzer.analyze(
+                self.results[: captured_count - 1],
+                tuple(session.results for session in self._completed_sessions),
+            )
+            _, actual_result = self.results[captured_count - 1]
+            self._record_tendency_evaluations(tendencies, actual_result)
 
     def _alert_upcoming_repeated_position_color(self, position: int) -> None:
         """Alert before a position red in both immediately prior sessions."""

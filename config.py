@@ -76,6 +76,9 @@ SESSIONS_DIR.mkdir(exist_ok=True)
 # Live, consolidated draw log. Detailed session reports remain in SESSIONS_DIR.
 RESULTS_FILE = BASE_DIR / "results.txt"
 
+# Historical-tendency evaluations, independent of the live draw log.
+TENDENCIES_FILE = BASE_DIR / "tendencies.txt"
+
 # Atomic checkpoint for a session that has started but is not yet finalized.
 ACTIVE_SESSION_FILE = SESSIONS_DIR / ".active-session.json"
 

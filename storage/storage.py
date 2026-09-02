@@ -13,6 +13,7 @@ from config import (
     RESULTS_FILE,
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
+    TENDENCIES_FILE,
 )
 from models.number_domain import validate_number
 
@@ -24,6 +25,10 @@ _SESSION_REPORT_DRAW_RE = re.compile(r"^\s*(\d+)\s+(\d+)\s+(-?\d+)\s*$")
 _RESULTS_LOG_HEADER = (
     "Pos | Draw ID             | Result",
     "----+---------------------+-------",
+)
+_TENDENCY_LOG_HEADER = (
+    "Session | Pos | Type | Previous two | Matches | Distribution | Actual | Verdict | Correct streak",
+    "--------+-----+------+--------------+---------+--------------+--------+---------+---------------",
 )
 
 
@@ -351,6 +356,107 @@ class Storage:
                 sessions.append((int(match.group(1)), CompletedSession(path.stem, results)))
 
         return tuple(session for _, session in sorted(sessions))
+
+    def append_tendency_evaluation(
+        self,
+        session_name: str,
+        position: int,
+        kind: str,
+        pattern: tuple[str, ...],
+        sample_size: int,
+        outcomes: tuple[tuple[str, int], ...],
+        actual_outcome: str,
+        verdict: str,
+    ) -> bool:
+        """Atomically append one resolved tendency unless it is already logged."""
+        if position < 1:
+            raise ValueError(f"Invalid tendency position: {position}")
+        if sample_size < 0:
+            raise ValueError(f"Invalid tendency sample size: {sample_size}")
+        if verdict not in {"CORRECT", "INCORRECT", "NO_HISTORY"}:
+            raise ValueError(f"Invalid tendency verdict: {verdict!r}")
+
+        pattern_text = " -> ".join(pattern)
+        existing_lines = (
+            TENDENCIES_FILE.read_text(encoding="utf-8").splitlines()
+            if TENDENCIES_FILE.exists()
+            else [*_TENDENCY_LOG_HEADER]
+        )
+        key = (session_name, str(position), kind)
+        parsed_entries = self._read_tendency_entries(existing_lines)
+        if any(entry[:3] == key for entry in parsed_entries):
+            return False
+
+        streak = self._tendency_correct_streak(
+            parsed_entries,
+            kind,
+            pattern_text,
+            verdict,
+        )
+        distribution = self._format_tendency_distribution(outcomes, sample_size)
+        existing_lines.append(
+            " | ".join(
+                (
+                    session_name,
+                    str(position),
+                    kind,
+                    pattern_text,
+                    str(sample_size),
+                    distribution,
+                    actual_outcome,
+                    verdict,
+                    str(streak),
+                )
+            )
+        )
+        self._atomic_write_text(TENDENCIES_FILE, "\n".join(existing_lines) + "\n")
+        return True
+
+    @staticmethod
+    def _read_tendency_entries(lines: list[str]) -> list[tuple[str, ...]]:
+        """Read valid data rows from the tracker-owned tendency log."""
+        entries: list[tuple[str, ...]] = []
+        for line in lines:
+            parts = tuple(part.strip() for part in line.split(" | "))
+            if len(parts) != 9 or not parts[1].isdigit():
+                continue
+            entries.append(parts)
+        return entries
+
+    @staticmethod
+    def _tendency_correct_streak(
+        entries: list[tuple[str, ...]],
+        kind: str,
+        pattern: str,
+        verdict: str,
+    ) -> int:
+        """Count prior consecutive correct evaluations of this exact pattern."""
+        if verdict != "CORRECT":
+            return 0
+
+        streak = 1
+        for entry in reversed(entries):
+            previous_kind = entry[2]
+            previous_pattern = entry[3]
+            previous_verdict = entry[7]
+            if previous_kind != kind or previous_pattern != pattern:
+                continue
+            if previous_verdict != "CORRECT":
+                break
+            streak += 1
+        return streak
+
+    @staticmethod
+    def _format_tendency_distribution(
+        outcomes: tuple[tuple[str, int], ...],
+        sample_size: int,
+    ) -> str:
+        if sample_size == 0:
+            return "No history"
+        return ", ".join(
+            f"{label} {count / sample_size:.0%}"
+            for label, count in outcomes
+        )
 
     @staticmethod
     def _read_completed_session_results(path: Path) -> tuple[tuple[str, int], ...]:

@@ -8,6 +8,7 @@ from ui.events import EventBus
 
 def configure_session_storage(tmp_path, monkeypatch):
     monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.TENDENCIES_FILE", tmp_path / "tendencies.txt")
     monkeypatch.setattr("storage.storage.SESSIONS_DIR", tmp_path / "sessions")
     monkeypatch.setattr(
         "storage.storage.ACTIVE_SESSION_FILE",
@@ -295,3 +296,38 @@ def test_session_manager_publishes_next_position_history_from_all_prior_sessions
     assert "2 matching sessions" in tendency.payload["color"]
     assert "Black 50% (1)" in tendency.payload["color"]
     assert "Red 50% (1)" in tendency.payload["color"]
+
+
+def test_session_manager_records_resolved_tendencies_after_the_target_draw(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    for start_draw_id, third_result in ((12608180151, 3), (12608180161, 2)):
+        session_name = f"draw-{start_draw_id}"
+        Storage().save_session(
+            session_name,
+            SessionPresenter().report(
+                session_name,
+                [
+                    (str(start_draw_id + offset), 3 if offset == 0 else 1)
+                    if offset < 2
+                    else (str(start_draw_id + offset), third_result)
+                    if offset == 2
+                    else (str(start_draw_id + offset), 1)
+                    for offset in range(SESSION_DRAW_COUNT)
+                ],
+            ),
+        )
+
+    manager = SessionManager()
+    manager.start("12608180171")
+    add_snapshot_result(manager, "12608180171", 3)
+    add_snapshot_result(manager, "12608180172", 1)
+    add_snapshot_result(manager, "12608180173", 3)
+
+    log = (tmp_path / "tendencies.txt").read_text(encoding="utf-8")
+    assert "draw-12608180171 | 3 | Color | Red -> Black | 2" in log
+    assert "Red | CORRECT | 1" in log
+    assert "draw-12608180171 | 3 | Range | 1-6 -> 1-6 | 2" in log
+    assert "1-6 | CORRECT | 1" in log
