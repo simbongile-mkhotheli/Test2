@@ -11,6 +11,7 @@ from models.number_domain import (
     number_counts,
     range_counts,
 )
+from tracker.session_tendency import HistoricalTendency
 from ui.events import EventBus
 
 
@@ -85,6 +86,18 @@ class SessionPresenter:
                 f"in the previous two consecutive sessions "
                 f"{older_session_name} and {newer_session_name}."
             ),
+        )
+
+    def historical_tendencies(
+        self,
+        color_tendency: HistoricalTendency | None,
+        range_tendency: HistoricalTendency | None,
+    ) -> None:
+        """Publish history-based next-position summaries for the dashboard."""
+        self._publish(
+            "tendency_update",
+            color=self._format_tendency(color_tendency),
+            range=self._format_tendency(range_tendency),
         )
 
     def session_incomplete(
@@ -173,6 +186,31 @@ class SessionPresenter:
         """Send presentation updates to the dashboard when one is active."""
         if self.events is not None:
             self.events.publish(kind, **payload)
+
+    @staticmethod
+    def _format_tendency(tendency: HistoricalTendency | None) -> str:
+        if tendency is None:
+            return "Capture two draws to compare completed-session history."
+        prefix = " → ".join(tendency.prefix)
+        if tendency.sample_size == 0:
+            return (
+                f"Position {tendency.target_position} after {prefix}: "
+                "no matching completed sessions."
+            )
+
+        order = {label: index for index, (label, _) in enumerate(tendency.outcomes)}
+        outcomes = sorted(
+            tendency.outcomes,
+            key=lambda outcome: (-outcome[1], order[outcome[0]]),
+        )
+        distribution = ", ".join(
+            f"{label} {count / tendency.sample_size:.0%} ({count})"
+            for label, count in outcomes
+        )
+        return (
+            f"Position {tendency.target_position} after {prefix} • "
+            f"{tendency.sample_size} matching sessions • {distribution}"
+        )
 
     def _publish_session_update(self, results: list[tuple[str, int]]) -> None:
         self._publish(

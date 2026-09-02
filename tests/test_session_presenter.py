@@ -1,4 +1,5 @@
 from tracker.session_presenter import SessionPresenter
+from tracker.session_tendency import HistoricalTendency
 from ui.events import EventBus
 
 
@@ -97,4 +98,27 @@ def test_presenter_publishes_an_upcoming_position_color_alert():
     assert alerts[0].payload["message"] == (
         "UPCOMING POSITION ALERT | Position 2 was Red in the previous two "
         "consecutive sessions draw-12608180151 and draw-12608180161."
+    )
+
+
+def test_presenter_formats_historical_tendencies_with_the_sample_size():
+    events = EventBus()
+    presenter = SessionPresenter(events)
+    tendency = HistoricalTendency(
+        kind="Color",
+        target_position=3,
+        prefix=("Red", "Black"),
+        sample_size=4,
+        outcomes=(("Black", 1), ("Gray", 0), ("Red", 3), ("Zero", 0)),
+    )
+
+    presenter.historical_tendencies(tendency, None)
+
+    update = [event for event in events.drain() if event.kind == "tendency_update"][0]
+    assert update.payload["color"] == (
+        "Position 3 after Red → Black • 4 matching sessions • "
+        "Red 75% (3), Black 25% (1), Gray 0% (0), Zero 0% (0)"
+    )
+    assert update.payload["range"] == (
+        "Capture two draws to compare completed-session history."
     )

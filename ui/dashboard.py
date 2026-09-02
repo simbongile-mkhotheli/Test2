@@ -50,6 +50,13 @@ class Dashboard:
         self._color_vars = {
             label: tk.StringVar(value="0") for label, _ in NUMBER_COLORS
         }
+        self._color_tendency_var = tk.StringVar(
+            value="Capture two draws to compare completed-session history."
+        )
+        self._range_tendency_var = tk.StringVar(
+            value="Capture two draws to compare completed-session history."
+        )
+        self._alert_entries: list[tuple[str, str]] = []
         self._build()
         self._poll_events()
 
@@ -80,12 +87,13 @@ class Dashboard:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
-        container.rowconfigure(3, weight=1)
         container.rowconfigure(4, weight=1)
+        container.rowconfigure(5, weight=1)
 
         self._build_header(container)
         self._build_summary(container)
         self._build_counts(container)
+        self._build_tendencies(container)
         self._build_results(container)
         self._build_activity(container)
 
@@ -181,7 +189,7 @@ class Dashboard:
 
     def _build_results(self, parent: ttk.Frame) -> None:
         results = ttk.LabelFrame(parent, text="Captured draws", padding=8)
-        results.grid(row=3, column=0, sticky="nsew", pady=(16, 0))
+        results.grid(row=4, column=0, sticky="nsew", pady=(16, 0))
         results.columnconfigure(0, weight=1)
         results.rowconfigure(0, weight=1)
 
@@ -209,7 +217,7 @@ class Dashboard:
 
     def _build_activity(self, parent: ttk.Frame) -> None:
         activity = ttk.LabelFrame(parent, text="Activity", padding=8)
-        activity.grid(row=4, column=0, sticky="nsew", pady=(16, 0))
+        activity.grid(row=5, column=0, sticky="nsew", pady=(16, 0))
         activity.columnconfigure(0, weight=1)
         activity.rowconfigure(0, weight=1)
         self._activity = tk.Text(activity, height=8, state="disabled", wrap="word")
@@ -263,18 +271,29 @@ class Dashboard:
             self._latest_draw_var.set("-")
             self._latest_result_var.set("-")
             self._clear_draws()
+            self._reset_tendencies()
             self._status_var.set(
                 f"Session runs from {payload['start_draw_id']} to {payload['end_draw_id']}."
             )
         elif event.kind == "session_update":
             self._update_session(payload)
+        elif event.kind == "tendency_update":
+            self._color_tendency_var.set(str(payload["color"]))
+            self._range_tendency_var.set(str(payload["range"]))
         elif event.kind == "alert":
-            self._alerts.insert(0, payload["message"])
+            self._record_alert(
+                str(payload.get("alert_type", "")),
+                str(payload["message"]),
+            )
             self._status_var.set(payload["message"])
         elif event.kind == "session_finished":
+            self._clear_position_alerts()
+            self._reset_tendencies()
             self._status_var.set(f"Session saved to {payload['filename']}")
             self._append_activity("Session complete and saved.")
         elif event.kind == "session_incomplete":
+            self._clear_position_alerts()
+            self._reset_tendencies()
             self._status_var.set("Session incomplete; saved for review.")
             self._append_activity(payload["message"])
         elif event.kind == "tracker_stopped":
@@ -327,6 +346,54 @@ class Dashboard:
 
     def _clear_draws(self) -> None:
         self._draws.delete(*self._draws.get_children())
+
+    def _build_tendencies(self, parent: ttk.Frame) -> None:
+        tendencies = ttk.LabelFrame(parent, text="Historical tendency", padding=8)
+        tendencies.grid(row=3, column=0, sticky="ew", pady=(16, 0))
+        tendencies.columnconfigure(1, weight=1)
+        ttk.Label(tendencies, text="Next color").grid(row=0, column=0, sticky="nw")
+        ttk.Label(
+            tendencies,
+            textvariable=self._color_tendency_var,
+            wraplength=820,
+            justify="left",
+        ).grid(row=0, column=1, sticky="w", padx=(16, 0))
+        ttk.Label(tendencies, text="Next range").grid(
+            row=1,
+            column=0,
+            sticky="nw",
+            pady=(8, 0),
+        )
+        ttk.Label(
+            tendencies,
+            textvariable=self._range_tendency_var,
+            wraplength=820,
+            justify="left",
+        ).grid(row=1, column=1, sticky="w", padx=(16, 0), pady=(8, 0))
+
+    def _reset_tendencies(self) -> None:
+        message = "Capture two draws to compare completed-session history."
+        self._color_tendency_var.set(message)
+        self._range_tendency_var.set(message)
+
+    def _record_alert(self, alert_type: str, message: str) -> None:
+        """Show an alert while retaining enough metadata to reset it safely."""
+        self._alert_entries.insert(0, (alert_type, message))
+        self._render_alerts()
+
+    def _clear_position_alerts(self) -> None:
+        """Remove ended-session position alerts without hiding live absences."""
+        self._alert_entries = [
+            entry
+            for entry in self._alert_entries
+            if entry[0] != "POSITION_COLOR"
+        ]
+        self._render_alerts()
+
+    def _render_alerts(self) -> None:
+        self._alerts.delete(0, tk.END)
+        for _, message in self._alert_entries:
+            self._alerts.insert(tk.END, message)
 
     def _append_activity(self, message: str) -> None:
         self._activity.configure(state="normal")

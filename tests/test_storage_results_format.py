@@ -177,6 +177,10 @@ def test_storage_reads_the_two_consecutive_sessions_before_the_current_one(
         (str(12608180161 + offset), (offset + 2) % 19)
         for offset in range(10)
     )
+    assert [
+        session.name
+        for session in storage.completed_sessions_before("12608180171")
+    ] == ["draw-12608180151", "draw-12608180161"]
 
 
 def test_storage_resets_the_position_pattern_when_a_prior_session_is_missing(

@@ -92,6 +92,10 @@ INCOMPLETE_SESSIONS_DIR = SESSIONS_DIR / "incomplete"
 # ID ending in 1 and ends at the 10th consecutive draw ID (ending in 0).
 SESSION_DRAW_COUNT = 10
 
+# Historical next-position tendencies use the two immediately prior draws at
+# the same positions in completed sessions.
+TENDENCY_LOOKBACK_DRAWS = 2
+
 
 # -----------------------------------------------------
 # Logging

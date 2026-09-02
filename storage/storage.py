@@ -332,6 +332,26 @@ class Storage:
 
         return sessions[0], sessions[1]
 
+    def completed_sessions_before(
+        self,
+        start_draw_id: str,
+    ) -> tuple[CompletedSession, ...]:
+        """Return every valid completed session that predates this session."""
+        if not isinstance(start_draw_id, str) or not start_draw_id.isdigit():
+            raise ValueError(f"Invalid session start draw ID: {start_draw_id!r}")
+
+        current_start = int(start_draw_id)
+        sessions: list[tuple[int, CompletedSession]] = []
+        for path in SESSIONS_DIR.glob("draw-*.txt"):
+            match = _SESSION_REPORT_NAME_RE.match(path.name)
+            if match is None or int(match.group(1)) >= current_start:
+                continue
+            results = self._read_completed_session_results(path)
+            if results:
+                sessions.append((int(match.group(1)), CompletedSession(path.stem, results)))
+
+        return tuple(session for _, session in sorted(sessions))
+
     @staticmethod
     def _read_completed_session_results(path: Path) -> tuple[tuple[str, int], ...]:
         """Read one complete, ordered session report, or reject it."""

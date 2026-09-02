@@ -256,3 +256,42 @@ def test_position_alert_resets_when_the_latest_session_breaks_the_pattern(
     add_snapshot_result(manager, "12608180181", 1)
 
     assert not [event for event in events.drain() if event.kind == "alert"]
+
+
+def test_session_manager_publishes_next_position_history_from_all_prior_sessions(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    for start_draw_id, third_result in ((12608180151, 3), (12608180161, 7)):
+        session_name = f"draw-{start_draw_id}"
+        Storage().save_session(
+            session_name,
+            SessionPresenter().report(
+                session_name,
+                [
+                    (str(start_draw_id + offset), 3 if offset == 0 else 1)
+                    if offset < 2
+                    else (str(start_draw_id + offset), third_result)
+                    if offset == 2
+                    else (str(start_draw_id + offset), 1)
+                    for offset in range(SESSION_DRAW_COUNT)
+                ],
+            ),
+        )
+
+    events = EventBus()
+    manager = SessionManager(events)
+    manager.start("12608180171")
+    add_snapshot_result(manager, "12608180171", 3)
+    add_snapshot_result(manager, "12608180172", 1)
+
+    tendency = [
+        event
+        for event in events.drain()
+        if event.kind == "tendency_update"
+    ][0]
+    assert "Position 3 after Red → Black" in tendency.payload["color"]
+    assert "2 matching sessions" in tendency.payload["color"]
+    assert "Black 50% (1)" in tendency.payload["color"]
+    assert "Red 50% (1)" in tendency.payload["color"]

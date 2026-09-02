@@ -8,6 +8,7 @@ from models.number_domain import number_color
 from storage.storage import CompletedSession, Storage
 from tracker.session_presenter import SessionPresenter
 from tracker.session_state import SessionState
+from tracker.session_tendency import SessionTendencyAnalyzer
 from ui.events import EventBus
 
 
@@ -31,10 +32,12 @@ class SessionManager:
         self.storage = Storage()
         self.state = SessionState(SESSION_DRAW_COUNT)
         self.presenter = SessionPresenter(events)
+        self.tendency_analyzer = SessionTendencyAnalyzer()
         self._last_history: tuple[int, ...] | None = None
         self._previous_completed_sessions: (
             tuple[CompletedSession, CompletedSession] | None
         ) = None
+        self._completed_sessions: tuple[CompletedSession, ...] = ()
         self._restore_active_session()
 
     @property
@@ -90,8 +93,9 @@ class SessionManager:
             return
 
         self._last_history = checkpoint.last_history
-        self._load_previous_completed_sessions()
+        self._load_completed_session_history()
         self.presenter.restore(self.results, checkpoint.name)
+        self._publish_historical_tendencies()
         self._alert_upcoming_repeated_position_color(len(self.results) + 1)
         if self.is_complete():
             self.finish()
@@ -144,7 +148,7 @@ class SessionManager:
     def start(self, start_draw_id: str) -> None:
         """Create a session and checkpoint its initial empty state."""
         self.state.start(start_draw_id)
-        self._load_previous_completed_sessions()
+        self._load_completed_session_history()
         self.storage.checkpoint_session(
             self.session_name,
             start_draw_id,
@@ -185,6 +189,7 @@ class SessionManager:
             )
 
             self.presenter.result_recorded(self.results)
+            self._publish_historical_tendencies()
             self._alert_upcoming_repeated_position_color(len(self.results) + 1)
 
         unavailable_draw_ids = self.state.incomplete_missing_draw_ids(snapshot.draw_id)
@@ -194,14 +199,27 @@ class SessionManager:
             unavailable_draw_ids=unavailable_draw_ids,
         )
 
-    def _load_previous_completed_sessions(self) -> None:
-        """Load only the two reports directly before this session."""
+    def _load_completed_session_history(self) -> None:
+        """Load finalized reports used by alerts and history tendencies."""
         start_draw_id = self.start_draw_id
+        self._completed_sessions = (
+            self.storage.completed_sessions_before(start_draw_id)
+            if start_draw_id is not None
+            else ()
+        )
         self._previous_completed_sessions = (
             self.storage.two_consecutive_completed_sessions_before(start_draw_id)
             if start_draw_id is not None
             else None
         )
+
+    def _publish_historical_tendencies(self) -> None:
+        """Show what completed sessions historically did after this prefix."""
+        color_tendency, range_tendency = self.tendency_analyzer.analyze(
+            self.results,
+            tuple(session.results for session in self._completed_sessions),
+        )
+        self.presenter.historical_tendencies(color_tendency, range_tendency)
 
     def _alert_upcoming_repeated_position_color(self, position: int) -> None:
         """Alert before a position red in both immediately prior sessions."""
@@ -241,6 +259,7 @@ class SessionManager:
         self.state.clear()
         self._last_history = None
         self._previous_completed_sessions = None
+        self._completed_sessions = ()
         self.presenter.reset()
         self.presenter.session_incomplete(
             captured_count,
@@ -271,6 +290,7 @@ class SessionManager:
         self.state.clear()
         self._last_history = None
         self._previous_completed_sessions = None
+        self._completed_sessions = ()
         self.presenter.reset()
         self.presenter.session_finished(report_text, filename)
 

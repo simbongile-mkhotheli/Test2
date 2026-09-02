@@ -34,6 +34,7 @@ main.py
       -> SessionManager (orchestration)
           -> SessionState (session rules and state)
           -> Storage
+          -> SessionTendencyAnalyzer (completed-session history)
           -> SessionPresenter -> EventBus -> Dashboard
       -> AlertMonitor (live results) -> EventBus -> Dashboard
 ```
@@ -80,7 +81,18 @@ shows an `UPCOMING POSITION ALERT` before the current position is captured.
 The pattern can continue into later sessions, but it resets whenever either
 prior position is not Red or a required consecutive session report is missing.
 This comparison uses saved session reports, so it also works after restarting
-the program.
+the program. The dashboard clears position alerts when a session completes or
+becomes incomplete; live range and color absence alerts remain because they are
+tracked across sessions.
+
+## Historical tendency
+
+After the second captured session draw, the dashboard compares the two most
+recent colors and the two most recent ranges with those same two positions in
+every earlier valid completed 10-draw session. It displays the distribution for
+the following position and the number of matching sessions. For example, before
+position 5 it uses positions 3 and 4 only: `Black → Gray`. Range summaries work
+the same way. These are historical counts only, not guaranteed outcomes.
 
 ## Desktop dashboard
 
