@@ -182,7 +182,7 @@ def _save_completed_session_with_red_position(
             [
                 (
                     str(start_draw_id + offset),
-                    3 if offset == red_position - 1 else 1,
+                    3 if offset == red_position - 1 else 0,
                 )
                 for offset in range(SESSION_DRAW_COUNT)
             ],
@@ -239,6 +239,43 @@ def test_position_alert_continues_when_the_current_session_keeps_the_pattern(
     assert "Position 2 was Red" in alerts[0].payload["message"]
     assert "draw-12608180161" in alerts[0].payload["message"]
     assert "draw-12608180171" in alerts[0].payload["message"]
+
+
+def test_session_manager_alerts_for_black_and_gray_position_consistency(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    for current_start, color_result, color_name in (
+        (12608180171, 1, "Black"),
+        (12608180201, 2, "Gray"),
+    ):
+        storage = Storage()
+        for start_draw_id in (current_start - 20, current_start - 10):
+            session_name = f"draw-{start_draw_id}"
+            storage.save_session(
+                session_name,
+                SessionPresenter().report(
+                    session_name,
+                    [
+                        (
+                            str(start_draw_id + offset),
+                            color_result if offset == 1 else 0,
+                        )
+                        for offset in range(SESSION_DRAW_COUNT)
+                    ],
+                ),
+            )
+
+        events = EventBus()
+        manager = SessionManager(events)
+        manager.start(str(current_start))
+        add_snapshot_result(manager, str(current_start), 1)
+        alerts = [event for event in events.drain() if event.kind == "alert"]
+
+        assert len(alerts) == 1
+        assert f"Position 2 was {color_name}" in alerts[0].payload["message"]
+        storage.clear_active_session()
 
 
 def test_position_alert_resets_when_the_latest_session_breaks_the_pattern(

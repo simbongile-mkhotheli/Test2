@@ -69,17 +69,18 @@ includes `COLOR COUNTS`: Black (`1, 4, 7, 10, 13, 16`), Gray
 a color.
 
 The desktop dashboard monitors alerts from every verified live draw, not from
-individual sessions. It shows a range alert once a range has missed 10
-consecutive draws and a color alert once a color has missed 24. An alert resets
+individual sessions. It shows a range alert once a range has missed 25
+consecutive draws and a color alert once a color has missed 25. An alert resets
 after the group appears again, and an ongoing alert is restored from
 `results.txt` when tracking starts. Zero extends every range and color absence
 streak because it is outside all three ranges and colors.
 
 Before each position is captured, the tracker checks the same position in the
-two immediately preceding completed sessions. If both were Red, the dashboard
-shows an `UPCOMING POSITION ALERT` before the current position is captured.
-The pattern can continue into later sessions, but it resets whenever either
-prior position is not Red or a required consecutive session report is missing.
+two immediately preceding completed sessions. If both were the same color
+(Black, Gray, or Red), the dashboard shows an `UPCOMING POSITION ALERT` before
+the current position is captured. The pattern can continue into later sessions,
+but it resets whenever either prior position differs or a required consecutive
+session report is missing.
 This comparison uses saved session reports, so it also works after restarting
 the program. The dashboard clears position alerts when a session completes or
 becomes incomplete; live range and color absence alerts remain because they are

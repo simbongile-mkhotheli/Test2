@@ -1,35 +1,117 @@
-Session          | Pos | Previous two   | Matches | Distribution                         | Actual | Verdict    | Correct streak
------------------+-----+----------------+---------+--------------------------------------+--------+------------+---------------
-draw-12609030331 |   3 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030331 |   4 | 7-12 -> 13-18  |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030331 |   5 | 13-18 -> 13-18 |       0 | No history                           | 7-12   | NO_HISTORY |              0
-draw-12609030331 |   6 | 13-18 -> 7-12  |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030331 |   7 | 7-12 -> 13-18  |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030331 |   8 | 13-18 -> 1-6   |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030331 |   9 | 1-6 -> 1-6     |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030331 |  10 | 1-6 -> 13-18   |       0 | No history                           | 7-12   | NO_HISTORY |              0
-draw-12609030341 |   3 | 13-18 -> 1-6   |       0 | No history                           | Zero   | NO_HISTORY |              0
-draw-12609030341 |   4 | 1-6 -> Zero    |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030341 |   5 | Zero -> 13-18  |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030341 |   6 | 13-18 -> 1-6   |       0 | No history                           | 7-12   | NO_HISTORY |              0
-draw-12609030341 |   7 | 1-6 -> 7-12    |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030341 |   8 | 7-12 -> 1-6    |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030341 |   9 | 1-6 -> 13-18   |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030341 |  10 | 13-18 -> 13-18 |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030351 |   3 | 13-18 -> 1-6   |       1 | 1-6 0%, 7-12 0%, 13-18 0%, Zero 100% | 7-12   | INCORRECT  |              0
-draw-12609030351 |   4 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030351 |   5 | 7-12 -> 13-18  |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030351 |   6 | 13-18 -> 13-18 |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030351 |   7 | 13-18 -> 1-6   |       0 | No history                           | 7-12   | NO_HISTORY |              0
-draw-12608180151 |   3 | Zero -> 1-6    |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12608180151 |   4 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12608180151 |   5 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12608180151 |   6 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12608180151 |   7 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12608180151 |   8 | 1-6 -> 1-6     |       0 | No history                           | 7-12   | NO_HISTORY |              0
-draw-12608180151 |   9 | 1-6 -> 7-12    |       0 | No history                           | 7-12   | NO_HISTORY |              0
-draw-12608180151 |  10 | 7-12 -> 7-12   |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030351 |   8 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030351 |   9 | 7-12 -> 13-18  |       0 | No history                           | 1-6    | NO_HISTORY |              0
-draw-12609030351 |  10 | 13-18 -> 1-6   |       0 | No history                           | 13-18  | NO_HISTORY |              0
-draw-12609030361 |   3 | 7-12 -> 7-12   |       0 | No history                           | 13-18  | NO_HISTORY |              0
+Session          | Pos | Previous two   | Matches | Distribution                           | Actual | Verdict    | Correct streak
+-----------------+-----+----------------+---------+----------------------------------------+--------+------------+---------------
+draw-12609030331 |   3 | 1-6 -> 7-12    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030331 |   4 | 7-12 -> 13-18  |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030331 |   5 | 13-18 -> 13-18 |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030331 |   6 | 13-18 -> 7-12  |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030331 |   7 | 7-12 -> 13-18  |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030331 |   8 | 13-18 -> 1-6   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030331 |   9 | 1-6 -> 1-6     |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030331 |  10 | 1-6 -> 13-18   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030341 |   3 | 13-18 -> 1-6   |       0 | No history                             | Zero   | NO_HISTORY |              0
+draw-12609030341 |   4 | 1-6 -> Zero    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030341 |   5 | Zero -> 13-18  |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030341 |   6 | 13-18 -> 1-6   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030341 |   7 | 1-6 -> 7-12    |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030341 |   8 | 7-12 -> 1-6    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030341 |   9 | 1-6 -> 13-18   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030341 |  10 | 13-18 -> 13-18 |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   3 | 13-18 -> 1-6   |       1 | 1-6 0%, 7-12 0%, 13-18 0%, Zero 100%   | 7-12   | INCORRECT  |              0
+draw-12609030351 |   4 | 1-6 -> 7-12    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   5 | 7-12 -> 13-18  |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   6 | 13-18 -> 13-18 |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030351 |   7 | 13-18 -> 1-6   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12608180151 |   3 | Zero -> 1-6    |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   4 | 1-6 -> 1-6     |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   5 | 1-6 -> 1-6     |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   6 | 1-6 -> 1-6     |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   7 | 1-6 -> 1-6     |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   8 | 1-6 -> 1-6     |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12608180151 |   9 | 1-6 -> 7-12    |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12608180151 |  10 | 7-12 -> 7-12   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030351 |   8 | 1-6 -> 7-12    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   9 | 7-12 -> 13-18  |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030351 |  10 | 13-18 -> 1-6   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030361 |   3 | 7-12 -> 7-12   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030361 |   4 | 7-12 -> 13-18  |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030361 |   5 | 13-18 -> 7-12  |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030361 |   6 | 7-12 -> 1-6    |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030361 |   7 | 1-6 -> 7-12    |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030361 |   8 | 7-12 -> 7-12   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030361 |   9 | 7-12 -> 7-12   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030361 |  10 | 7-12 -> 7-12   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030371 |   3 | Zero -> 1-6    |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030371 |   4 | 1-6 -> 7-12    |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | 1-6    | INCORRECT  |              0
+draw-12609030371 |   5 | 7-12 -> 1-6    |       0 | No history                             | Zero   | NO_HISTORY |              0
+draw-12609030371 |   6 | 1-6 -> Zero    |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030371 |   7 | Zero -> 7-12   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030371 |   8 | 7-12 -> 1-6    |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | 13-18  | CORRECT    |              1
+draw-12609030371 |   9 | 1-6 -> 13-18   |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | 1-6    | INCORRECT  |              0
+draw-12609030371 |  10 | 13-18 -> 1-6   |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | Zero   | INCORRECT  |              0
+draw-12609030381 |   3 | 13-18 -> 1-6   |       2 | 1-6 0%, 7-12 50%, 13-18 0%, Zero 50%   | 7-12   | CORRECT    |              1
+draw-12609030381 |   4 | 1-6 -> 7-12    |       2 | 1-6 50%, 7-12 0%, 13-18 50%, Zero 0%   | 1-6    | CORRECT    |              1
+draw-12609030381 |   5 | 7-12 -> 1-6    |       1 | 1-6 0%, 7-12 0%, 13-18 0%, Zero 100%   | Zero   | CORRECT    |              2
+draw-12609030381 |   6 | 1-6 -> Zero    |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 7-12   | CORRECT    |              1
+draw-12609030381 |   7 | Zero -> 7-12   |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030381 |   8 | 7-12 -> 7-12   |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 7-12   | CORRECT    |              1
+draw-12609030381 |   9 | 7-12 -> 7-12   |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 13-18  | INCORRECT  |              0
+draw-12609030381 |  10 | 7-12 -> 13-18  |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030391 |   3 | 13-18 -> 13-18 |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030391 |   4 | 13-18 -> 13-18 |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030391 |   5 | 13-18 -> 1-6   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030391 |   6 | 1-6 -> 7-12    |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030391 |   7 | 7-12 -> 1-6    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030391 |   8 | 1-6 -> 13-18   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030391 |   9 | 13-18 -> 1-6   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030391 |  10 | 1-6 -> 1-6     |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030401 |   3 | 1-6 -> 13-18   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030401 |   4 | 13-18 -> 7-12  |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030401 |   5 | 7-12 -> 1-6    |       2 | 1-6 0%, 7-12 0%, 13-18 0%, Zero 100%   | 7-12   | INCORRECT  |              0
+draw-12609030401 |   6 | 1-6 -> 7-12    |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030401 |   7 | 7-12 -> 7-12   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030401 |   8 | 7-12 -> 13-18  |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030401 |   9 | 13-18 -> 1-6   |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 13-18  | INCORRECT  |              0
+draw-12609030401 |  10 | 1-6 -> 13-18   |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 1-6    | INCORRECT  |              0
+draw-12609030411 |   3 | 1-6 -> 1-6     |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030411 |   4 | 1-6 -> 7-12    |       3 | 1-6 67%, 7-12 0%, 13-18 33%, Zero 0%   | 1-6    | CORRECT    |              1
+draw-12609030411 |   5 | 7-12 -> 1-6    |       3 | 1-6 0%, 7-12 33%, 13-18 0%, Zero 67%   | 1-6    | INCORRECT  |              0
+draw-12609030411 |   6 | 1-6 -> 1-6     |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030411 |   7 | 1-6 -> 1-6     |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030411 |   8 | 1-6 -> 13-18   |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 1-6    | CORRECT    |              1
+draw-12609030411 |   9 | 13-18 -> 1-6   |       2 | 1-6 50%, 7-12 0%, 13-18 50%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030411 |  10 | 1-6 -> 7-12    |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030421 |   3 | 7-12 -> 1-6    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030421 |   4 | 1-6 -> 13-18   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030421 |   5 | 13-18 -> 13-18 |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 13-18  | INCORRECT  |              0
+draw-12609030421 |   6 | 13-18 -> 13-18 |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030421 |   7 | 13-18 -> 7-12  |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030421 |   8 | 7-12 -> 13-18  |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 1-6    | CORRECT    |              1
+draw-12609030421 |   9 | 13-18 -> 1-6   |       3 | 1-6 33%, 7-12 33%, 13-18 33%, Zero 0%  | 1-6    | CORRECT    |              1
+draw-12609030421 |  10 | 1-6 -> 1-6     |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | Zero   | INCORRECT  |              0
+draw-12609030431 |   3 | 1-6 -> 13-18   |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 7-12   | CORRECT    |              1
+draw-12609030431 |   4 | 13-18 -> 7-12  |       1 | 1-6 100%, 7-12 0%, 13-18 0%, Zero 0%   | 1-6    | CORRECT    |              1
+draw-12609030431 |   5 | 7-12 -> 1-6    |       4 | 1-6 25%, 7-12 25%, 13-18 0%, Zero 50%  | 13-18  | INCORRECT  |              0
+draw-12609030431 |   6 | 1-6 -> 13-18   |       0 | No history                             | Zero   | NO_HISTORY |              0
+draw-12609030431 |   7 | 13-18 -> Zero  |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030431 |   8 | Zero -> 7-12   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030431 |   9 | 7-12 -> 1-6    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030431 |  10 | 1-6 -> 13-18   |       2 | 1-6 50%, 7-12 50%, 13-18 0%, Zero 0%   | 7-12   | CORRECT    |              1
+draw-12609030441 |   3 | 7-12 -> 1-6    |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | 1-6    | INCORRECT  |              0
+draw-12609030441 |   4 | 1-6 -> 1-6     |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030441 |   5 | 1-6 -> 13-18   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030441 |   6 | 13-18 -> 13-18 |       2 | 1-6 50%, 7-12 50%, 13-18 0%, Zero 0%   | 13-18  | INCORRECT  |              0
+draw-12609030441 |   7 | 13-18 -> 13-18 |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030441 |   8 | 13-18 -> 7-12  |       0 | No history                             | Zero   | NO_HISTORY |              0
+draw-12609030441 |   9 | 7-12 -> Zero   |       0 | No history                             | 7-12   | NO_HISTORY |              0
+draw-12609030441 |  10 | Zero -> 7-12   |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030451 |   3 | 1-6 -> 1-6     |       1 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | 7-12   | CORRECT    |              1
+draw-12609030451 |   4 | 1-6 -> 7-12    |       4 | 1-6 75%, 7-12 0%, 13-18 25%, Zero 0%   | 1-6    | CORRECT    |              1
+draw-12609030451 |   5 | 7-12 -> 1-6    |       5 | 1-6 20%, 7-12 20%, 13-18 20%, Zero 40% | Zero   | CORRECT    |              1
+draw-12609030451 |   6 | 1-6 -> Zero    |       2 | 1-6 0%, 7-12 100%, 13-18 0%, Zero 0%   | Zero   | INCORRECT  |              0
+draw-12609030451 |   7 | Zero -> Zero   |       0 | No history                             | 1-6    | NO_HISTORY |              0
+draw-12609030451 |   8 | Zero -> 1-6    |       0 | No history                             | 13-18  | NO_HISTORY |              0
+draw-12609030451 |   9 | 1-6 -> 13-18   |       2 | 1-6 50%, 7-12 0%, 13-18 50%, Zero 0%   | 13-18  | CORRECT    |              1
+draw-12609030451 |  10 | 13-18 -> 13-18 |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | Zero   | INCORRECT  |              0
+draw-12609030461 |   3 | 13-18 -> 1-6   |       3 | 1-6 0%, 7-12 67%, 13-18 0%, Zero 33%   | 1-6    | INCORRECT  |              0
+draw-12609030461 |   4 | 1-6 -> 1-6     |       1 | 1-6 0%, 7-12 0%, 13-18 100%, Zero 0%   | 7-12   | INCORRECT  |              0
+draw-12609030461 |   5 | 1-6 -> 7-12    |       0 | No history                             | 1-6    | NO_HISTORY |              0

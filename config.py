@@ -45,11 +45,12 @@ SNAPSHOT_STABLE_READS = 3
 # -----------------------------------------------------
 
 # Alert when a range or color reaches this many consecutive missed draws.
-RANGE_ABSENCE_ALERT_AT = 10
-COLOR_ABSENCE_ALERT_AT = 24
+RANGE_ABSENCE_ALERT_AT = 25
+COLOR_ABSENCE_ALERT_AT = 25
 
-# Alert when the same session position is red in two consecutive sessions.
-POSITION_COLOR_ALERT_COLOR = "Red"
+# Alert when the same session position repeats any color in two consecutive
+# completed sessions. Zero remains intentionally uncolored.
+POSITION_ALERT_COLORS = ("Black", "Gray", "Red")
 
 
 # -----------------------------------------------------

@@ -1,35 +1,117 @@
-Session          | Pos | Previous two   | Matches | Distribution | Actual | Verdict    | Correct streak
------------------+-----+----------------+---------+--------------+--------+------------+---------------
-draw-12609030331 |   3 | Gray -> Black  |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030331 |   4 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030331 |   5 | Gray -> Red    |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030331 |   6 | Red -> Black   |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030331 |   7 | Black -> Black |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030331 |   8 | Black -> Red   |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030331 |   9 | Red -> Black   |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030331 |  10 | Black -> Red   |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030341 |   3 | Red -> Gray    |       0 | No history   | Zero   | NO_HISTORY |              0
-draw-12609030341 |   4 | Gray -> Zero   |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030341 |   5 | Zero -> Gray   |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030341 |   6 | Gray -> Red    |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030341 |   7 | Red -> Gray    |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030341 |   8 | Gray -> Gray   |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030341 |   9 | Gray -> Black  |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030341 |  10 | Black -> Black |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030351 |   3 | Black -> Red   |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030351 |   4 | Red -> Gray    |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030351 |   5 | Gray -> Black  |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030351 |   6 | Black -> Gray  |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030351 |   7 | Gray -> Gray   |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12608180151 |   3 | Zero -> Black  |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12608180151 |   4 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12608180151 |   5 | Gray -> Red    |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12608180151 |   6 | Red -> Black   |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12608180151 |   7 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12608180151 |   8 | Gray -> Red    |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12608180151 |   9 | Red -> Black   |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12608180151 |  10 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030351 |   8 | Gray -> Red    |       0 | No history   | Red    | NO_HISTORY |              0
-draw-12609030351 |   9 | Red -> Red     |       0 | No history   | Gray   | NO_HISTORY |              0
-draw-12609030351 |  10 | Red -> Gray    |       0 | No history   | Black  | NO_HISTORY |              0
-draw-12609030361 |   3 | Red -> Black   |       0 | No history   | Red    | NO_HISTORY |              0
+Session          | Pos | Previous two   | Matches | Distribution                         | Actual | Verdict    | Correct streak
+-----------------+-----+----------------+---------+--------------------------------------+--------+------------+---------------
+draw-12609030331 |   3 | Gray -> Black  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030331 |   4 | Black -> Gray  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030331 |   5 | Gray -> Red    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030331 |   6 | Red -> Black   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030331 |   7 | Black -> Black |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030331 |   8 | Black -> Red   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030331 |   9 | Red -> Black   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030331 |  10 | Black -> Red   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030341 |   3 | Red -> Gray    |       0 | No history                           | Zero   | NO_HISTORY |              0
+draw-12609030341 |   4 | Gray -> Zero   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030341 |   5 | Zero -> Gray   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030341 |   6 | Gray -> Red    |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030341 |   7 | Red -> Gray    |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030341 |   8 | Gray -> Gray   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030341 |   9 | Gray -> Black  |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030341 |  10 | Black -> Black |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030351 |   3 | Black -> Red   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030351 |   4 | Red -> Gray    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030351 |   5 | Gray -> Black  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030351 |   6 | Black -> Gray  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030351 |   7 | Gray -> Gray   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12608180151 |   3 | Zero -> Black  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12608180151 |   4 | Black -> Gray  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12608180151 |   5 | Gray -> Red    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12608180151 |   6 | Red -> Black   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12608180151 |   7 | Black -> Gray  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12608180151 |   8 | Gray -> Red    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12608180151 |   9 | Red -> Black   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12608180151 |  10 | Black -> Gray  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030351 |   8 | Gray -> Red    |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030351 |   9 | Red -> Red     |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030351 |  10 | Red -> Gray    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030361 |   3 | Red -> Black   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030361 |   4 | Black -> Red   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030361 |   5 | Red -> Gray    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030361 |   6 | Gray -> Black  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030361 |   7 | Black -> Gray  |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030361 |   8 | Gray -> Black  |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030361 |   9 | Black -> Black |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030361 |  10 | Black -> Red   |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030371 |   3 | Zero -> Gray   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030371 |   4 | Gray -> Red    |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030371 |   5 | Red -> Gray    |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Zero   | INCORRECT  |              0
+draw-12609030371 |   6 | Gray -> Zero   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030371 |   7 | Zero -> Gray   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030371 |   8 | Gray -> Red    |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Red    | CORRECT    |              1
+draw-12609030371 |   9 | Red -> Red     |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Gray   | CORRECT    |              1
+draw-12609030371 |  10 | Red -> Gray    |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Zero   | INCORRECT  |              0
+draw-12609030381 |   3 | Red -> Black   |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030381 |   4 | Black -> Black |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030381 |   5 | Black -> Black |       0 | No history                           | Zero   | NO_HISTORY |              0
+draw-12609030381 |   6 | Black -> Zero  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030381 |   7 | Zero -> Gray   |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030381 |   8 | Gray -> Black  |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030381 |   9 | Black -> Gray  |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030381 |  10 | Gray -> Black  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030391 |   3 | Gray -> Black  |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Gray   | CORRECT    |              1
+draw-12609030391 |   4 | Black -> Gray  |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Red    | CORRECT    |              1
+draw-12609030391 |   5 | Gray -> Red    |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030391 |   6 | Red -> Gray    |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030391 |   7 | Gray -> Red    |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030391 |   8 | Red -> Black   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030391 |   9 | Black -> Black |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030391 |  10 | Black -> Black |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Red    | CORRECT    |              1
+draw-12609030401 |   3 | Black -> Gray  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030401 |   4 | Gray -> Red    |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Gray   | CORRECT    |              1
+draw-12609030401 |   5 | Red -> Gray    |       2 | Black 50%, Gray 0%, Red 0%, Zero 50% | Red    | INCORRECT  |              0
+draw-12609030401 |   6 | Gray -> Red    |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Red    | INCORRECT  |              0
+draw-12609030401 |   7 | Red -> Red     |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030401 |   8 | Red -> Red     |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030401 |   9 | Red -> Black   |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030401 |  10 | Black -> Gray  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030411 |   3 | Black -> Gray  |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030411 |   4 | Gray -> Gray   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030411 |   5 | Gray -> Black  |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030411 |   6 | Black -> Black |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030411 |   7 | Black -> Black |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030411 |   8 | Black -> Black |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030411 |   9 | Black -> Red   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030411 |  10 | Red -> Black   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030421 |   3 | Black -> Gray  |       2 | Black 0%, Gray 50%, Red 50%, Zero 0% | Gray   | CORRECT    |              1
+draw-12609030421 |   4 | Gray -> Gray   |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030421 |   5 | Gray -> Gray   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030421 |   6 | Gray -> Gray   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030421 |   7 | Gray -> Red    |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Black  | CORRECT    |              1
+draw-12609030421 |   8 | Red -> Black   |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030421 |   9 | Black -> Gray  |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Gray   | INCORRECT  |              0
+draw-12609030421 |  10 | Gray -> Gray   |       0 | No history                           | Zero   | NO_HISTORY |              0
+draw-12609030431 |   3 | Red -> Gray    |       1 | Black 0%, Gray 0%, Red 0%, Zero 100% | Black  | INCORRECT  |              0
+draw-12609030431 |   4 | Gray -> Black  |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030431 |   5 | Black -> Red   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030431 |   6 | Red -> Gray    |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Zero   | INCORRECT  |              0
+draw-12609030431 |   7 | Gray -> Zero   |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030431 |   8 | Zero -> Black  |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030431 |   9 | Black -> Gray  |       2 | Black 50%, Gray 50%, Red 0%, Zero 0% | Gray   | CORRECT    |              1
+draw-12609030431 |  10 | Gray -> Gray   |       1 | Black 0%, Gray 0%, Red 0%, Zero 100% | Black  | INCORRECT  |              0
+draw-12609030441 |   3 | Black -> Black |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030441 |   4 | Black -> Red   |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Red    | INCORRECT  |              0
+draw-12609030441 |   5 | Red -> Red     |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030441 |   6 | Red -> Gray    |       2 | Black 0%, Gray 0%, Red 50%, Zero 50% | Red    | CORRECT    |              1
+draw-12609030441 |   7 | Gray -> Red    |       2 | Black 100%, Gray 0%, Red 0%, Zero 0% | Red    | INCORRECT  |              0
+draw-12609030441 |   8 | Red -> Red     |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Zero   | INCORRECT  |              0
+draw-12609030441 |   9 | Red -> Zero    |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030441 |  10 | Zero -> Gray   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030451 |   3 | Black -> Black |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030451 |   4 | Black -> Black |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Red    | INCORRECT  |              0
+draw-12609030451 |   5 | Black -> Red   |       1 | Black 0%, Gray 100%, Red 0%, Zero 0% | Zero   | INCORRECT  |              0
+draw-12609030451 |   6 | Red -> Zero    |       0 | No history                           | Zero   | NO_HISTORY |              0
+draw-12609030451 |   7 | Zero -> Zero   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030451 |   8 | Zero -> Gray   |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609030451 |   9 | Gray -> Gray   |       0 | No history                           | Red    | NO_HISTORY |              0
+draw-12609030451 |  10 | Gray -> Red    |       0 | No history                           | Zero   | NO_HISTORY |              0
+draw-12609030461 |   3 | Gray -> Black  |       2 | Black 0%, Gray 100%, Red 0%, Zero 0% | Black  | INCORRECT  |              0
+draw-12609030461 |   4 | Black -> Black |       2 | Black 50%, Gray 0%, Red 50%, Zero 0% | Red    | CORRECT    |              1
+draw-12609030461 |   5 | Black -> Red   |       2 | Black 0%, Gray 50%, Red 0%, Zero 50% | Gray   | CORRECT    |              1

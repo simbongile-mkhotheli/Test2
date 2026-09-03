@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from config import (
-    POSITION_COLOR_ALERT_COLOR,
+    POSITION_ALERT_COLORS,
     SESSION_DRAW_COUNT,
     TENDENCY_LOOKBACK_DRAWS,
 )
@@ -269,7 +269,7 @@ class SessionManager:
             self._record_tendency_evaluations(tendencies, actual_result)
 
     def _alert_upcoming_repeated_position_color(self, position: int) -> None:
-        """Alert before a position red in both immediately prior sessions."""
+        """Alert before a position whose color repeats in both prior sessions."""
         previous = self._previous_completed_sessions
         if previous is None or not 1 <= position <= SESSION_DRAW_COUNT:
             return
@@ -277,13 +277,12 @@ class SessionManager:
         older_session, newer_session = previous
         _, older_result = older_session.results[position - 1]
         _, newer_result = newer_session.results[position - 1]
-        if (
-            number_color(older_result) == POSITION_COLOR_ALERT_COLOR
-            and number_color(newer_result) == POSITION_COLOR_ALERT_COLOR
-        ):
+        older_color = number_color(older_result)
+        newer_color = number_color(newer_result)
+        if older_color == newer_color and older_color in POSITION_ALERT_COLORS:
             self.presenter.upcoming_position_color_alert(
                 position,
-                POSITION_COLOR_ALERT_COLOR,
+                older_color,
                 older_session.name,
                 newer_session.name,
             )
