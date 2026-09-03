@@ -9,11 +9,13 @@ from tempfile import NamedTemporaryFile
 
 from config import (
     ACTIVE_SESSION_FILE,
+    COLOR_TENDENCIES_FILE,
     INCOMPLETE_SESSIONS_DIR,
+    LEGACY_TENDENCIES_FILE,
     RESULTS_FILE,
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
-    TENDENCIES_FILE,
+    RANGE_TENDENCIES_FILE,
 )
 from models.number_domain import validate_number
 
@@ -26,9 +28,15 @@ _RESULTS_LOG_HEADER = (
     "Pos | Draw ID             | Result",
     "----+---------------------+-------",
 )
-_TENDENCY_LOG_HEADER = (
-    "Session | Pos | Type | Previous two | Matches | Distribution | Actual | Verdict | Correct streak",
-    "--------+-----+------+--------------+---------+--------------+--------+---------+---------------",
+_TENDENCY_LOG_COLUMNS = (
+    "Session",
+    "Pos",
+    "Previous two",
+    "Matches",
+    "Distribution",
+    "Actual",
+    "Verdict",
+    "Correct streak",
 )
 
 
@@ -54,6 +62,8 @@ class Storage:
     def __init__(self):
         RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
         RESULTS_FILE.touch(exist_ok=True)
+        self._migrate_legacy_tendency_log()
+        self._reformat_tendency_logs()
 
     @staticmethod
     def _atomic_write_text(path: Path, text: str) -> None:
@@ -377,40 +387,103 @@ class Storage:
             raise ValueError(f"Invalid tendency verdict: {verdict!r}")
 
         pattern_text = " -> ".join(pattern)
+        tendency_file = self._tendency_file_for(kind)
         existing_lines = (
-            TENDENCIES_FILE.read_text(encoding="utf-8").splitlines()
-            if TENDENCIES_FILE.exists()
-            else [*_TENDENCY_LOG_HEADER]
+            tendency_file.read_text(encoding="utf-8").splitlines()
+            if tendency_file.exists()
+            else []
         )
-        key = (session_name, str(position), kind)
+        key = (session_name, str(position))
         parsed_entries = self._read_tendency_entries(existing_lines)
-        if any(entry[:3] == key for entry in parsed_entries):
+        if any(entry[:2] == key for entry in parsed_entries):
             return False
 
         streak = self._tendency_correct_streak(
             parsed_entries,
-            kind,
             pattern_text,
             verdict,
         )
         distribution = self._format_tendency_distribution(outcomes, sample_size)
-        existing_lines.append(
-            " | ".join(
-                (
-                    session_name,
-                    str(position),
-                    kind,
-                    pattern_text,
-                    str(sample_size),
-                    distribution,
-                    actual_outcome,
-                    verdict,
-                    str(streak),
-                )
+        parsed_entries.append(
+            (
+                session_name,
+                str(position),
+                pattern_text,
+                str(sample_size),
+                distribution,
+                actual_outcome,
+                verdict,
+                str(streak),
             )
         )
-        self._atomic_write_text(TENDENCIES_FILE, "\n".join(existing_lines) + "\n")
+        self._atomic_write_text(tendency_file, self._tendency_log_text(parsed_entries))
         return True
+
+    def _migrate_legacy_tendency_log(self) -> None:
+        """Split the old combined tendency log without discarding its rows."""
+        if (
+            not LEGACY_TENDENCIES_FILE.exists()
+            or LEGACY_TENDENCIES_FILE.parent != RESULTS_FILE.parent
+        ):
+            return
+
+        destination_entries: dict[Path, list[tuple[str, ...]]] = {}
+        known_keys: dict[Path, set[tuple[str, str]]] = {}
+        changed_files: set[Path] = set()
+        for line in LEGACY_TENDENCIES_FILE.read_text(encoding="utf-8").splitlines():
+            parts = tuple(part.strip() for part in line.split(" | "))
+            if len(parts) != 9 or not parts[1].isdigit():
+                continue
+            try:
+                tendency_file = self._tendency_file_for(parts[2])
+            except ValueError:
+                continue
+
+            if tendency_file not in destination_entries:
+                lines = (
+                    tendency_file.read_text(encoding="utf-8").splitlines()
+                    if tendency_file.exists()
+                    else []
+                )
+                destination_entries[tendency_file] = self._read_tendency_entries(lines)
+                known_keys[tendency_file] = {
+                    (entry[0], entry[1])
+                    for entry in destination_entries[tendency_file]
+                }
+
+            key = (parts[0], parts[1])
+            if key in known_keys[tendency_file]:
+                continue
+            destination_entries[tendency_file].append((
+                parts[0],
+                parts[1],
+                parts[3],
+                parts[4],
+                parts[5],
+                parts[6],
+                parts[7],
+                parts[8],
+            ))
+            known_keys[tendency_file].add(key)
+            changed_files.add(tendency_file)
+
+        for tendency_file in changed_files:
+            self._atomic_write_text(
+                tendency_file,
+                self._tendency_log_text(destination_entries[tendency_file]),
+            )
+
+        archive_path = LEGACY_TENDENCIES_FILE.with_name("tendencies.legacy.txt")
+        if not archive_path.exists():
+            LEGACY_TENDENCIES_FILE.replace(archive_path)
+
+    @staticmethod
+    def _tendency_file_for(kind: str) -> Path:
+        if kind == "Color":
+            return COLOR_TENDENCIES_FILE
+        if kind == "Range":
+            return RANGE_TENDENCIES_FILE
+        raise ValueError(f"Invalid tendency type: {kind!r}")
 
     @staticmethod
     def _read_tendency_entries(lines: list[str]) -> list[tuple[str, ...]]:
@@ -418,15 +491,48 @@ class Storage:
         entries: list[tuple[str, ...]] = []
         for line in lines:
             parts = tuple(part.strip() for part in line.split(" | "))
-            if len(parts) != 9 or not parts[1].isdigit():
+            if len(parts) != 8 or not parts[1].isdigit():
                 continue
             entries.append(parts)
         return entries
 
+    def _reformat_tendency_logs(self) -> None:
+        """Keep both human-readable tendency logs as aligned text tables."""
+        for tendency_file in (COLOR_TENDENCIES_FILE, RANGE_TENDENCIES_FILE):
+            if not tendency_file.exists():
+                continue
+            entries = self._read_tendency_entries(
+                tendency_file.read_text(encoding="utf-8").splitlines()
+            )
+            self._atomic_write_text(tendency_file, self._tendency_log_text(entries))
+
+    @staticmethod
+    def _tendency_log_text(entries: list[tuple[str, ...]]) -> str:
+        """Render entries as a fixed-width table suitable for plain-text editors."""
+        widths = [
+            max(len(title), *(len(entry[index]) for entry in entries))
+            if entries
+            else len(title)
+            for index, title in enumerate(_TENDENCY_LOG_COLUMNS)
+        ]
+        header = " | ".join(
+            title.ljust(widths[index])
+            for index, title in enumerate(_TENDENCY_LOG_COLUMNS)
+        )
+        separator = "-+-".join("-" * width for width in widths)
+        rows = [
+            " | ".join(
+                value.rjust(widths[index]) if index in {1, 3, 7}
+                else value.ljust(widths[index])
+                for index, value in enumerate(entry)
+            )
+            for entry in entries
+        ]
+        return "\n".join((header, separator, *rows)) + "\n"
+
     @staticmethod
     def _tendency_correct_streak(
         entries: list[tuple[str, ...]],
-        kind: str,
         pattern: str,
         verdict: str,
     ) -> int:
@@ -436,10 +542,9 @@ class Storage:
 
         streak = 1
         for entry in reversed(entries):
-            previous_kind = entry[2]
-            previous_pattern = entry[3]
-            previous_verdict = entry[7]
-            if previous_kind != kind or previous_pattern != pattern:
+            previous_pattern = entry[2]
+            previous_verdict = entry[6]
+            if previous_pattern != pattern:
                 continue
             if previous_verdict != "CORRECT":
                 break

@@ -1,0 +1,32 @@
+Session          | Pos | Previous two   | Matches | Distribution | Actual | Verdict    | Correct streak
+-----------------+-----+----------------+---------+--------------+--------+------------+---------------
+draw-12609030331 |   3 | Gray -> Black  |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030331 |   4 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030331 |   5 | Gray -> Red    |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030331 |   6 | Red -> Black   |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030331 |   7 | Black -> Black |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030331 |   8 | Black -> Red   |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030331 |   9 | Red -> Black   |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030331 |  10 | Black -> Red   |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030341 |   3 | Red -> Gray    |       0 | No history   | Zero   | NO_HISTORY |              0
+draw-12609030341 |   4 | Gray -> Zero   |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030341 |   5 | Zero -> Gray   |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030341 |   6 | Gray -> Red    |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030341 |   7 | Red -> Gray    |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030341 |   8 | Gray -> Gray   |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030341 |   9 | Gray -> Black  |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030341 |  10 | Black -> Black |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030351 |   3 | Black -> Red   |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030351 |   4 | Red -> Gray    |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030351 |   5 | Gray -> Black  |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030351 |   6 | Black -> Gray  |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030351 |   7 | Gray -> Gray   |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12608180151 |   3 | Zero -> Black  |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12608180151 |   4 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12608180151 |   5 | Gray -> Red    |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12608180151 |   6 | Red -> Black   |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12608180151 |   7 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12608180151 |   8 | Gray -> Red    |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12608180151 |   9 | Red -> Black   |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12608180151 |  10 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030351 |   8 | Gray -> Red    |       0 | No history   | Red    | NO_HISTORY |              0

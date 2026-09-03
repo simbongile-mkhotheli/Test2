@@ -8,7 +8,14 @@ from ui.events import EventBus
 
 def configure_session_storage(tmp_path, monkeypatch):
     monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
-    monkeypatch.setattr("storage.storage.TENDENCIES_FILE", tmp_path / "tendencies.txt")
+    monkeypatch.setattr(
+        "storage.storage.COLOR_TENDENCIES_FILE",
+        tmp_path / "color_tendencies.txt",
+    )
+    monkeypatch.setattr(
+        "storage.storage.RANGE_TENDENCIES_FILE",
+        tmp_path / "range_tendencies.txt",
+    )
     monkeypatch.setattr("storage.storage.SESSIONS_DIR", tmp_path / "sessions")
     monkeypatch.setattr(
         "storage.storage.ACTIVE_SESSION_FILE",
@@ -326,8 +333,9 @@ def test_session_manager_records_resolved_tendencies_after_the_target_draw(
     add_snapshot_result(manager, "12608180172", 1)
     add_snapshot_result(manager, "12608180173", 3)
 
-    log = (tmp_path / "tendencies.txt").read_text(encoding="utf-8")
-    assert "draw-12608180171 | 3 | Color | Red -> Black | 2" in log
-    assert "Red | CORRECT | 1" in log
-    assert "draw-12608180171 | 3 | Range | 1-6 -> 1-6 | 2" in log
-    assert "1-6 | CORRECT | 1" in log
+    color_log = (tmp_path / "color_tendencies.txt").read_text(encoding="utf-8")
+    range_log = (tmp_path / "range_tendencies.txt").read_text(encoding="utf-8")
+    assert "draw-12608180171 | 3 | Red -> Black | 2" in color_log
+    assert "Red | CORRECT | 1" in color_log
+    assert "draw-12608180171 | 3 | 1-6 -> 1-6 | 2" in range_log
+    assert "1-6 | CORRECT | 1" in range_log

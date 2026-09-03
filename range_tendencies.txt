@@ -1,0 +1,32 @@
+Session          | Pos | Previous two   | Matches | Distribution                         | Actual | Verdict    | Correct streak
+-----------------+-----+----------------+---------+--------------------------------------+--------+------------+---------------
+draw-12609030331 |   3 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030331 |   4 | 7-12 -> 13-18  |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030331 |   5 | 13-18 -> 13-18 |       0 | No history                           | 7-12   | NO_HISTORY |              0
+draw-12609030331 |   6 | 13-18 -> 7-12  |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030331 |   7 | 7-12 -> 13-18  |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030331 |   8 | 13-18 -> 1-6   |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030331 |   9 | 1-6 -> 1-6     |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030331 |  10 | 1-6 -> 13-18   |       0 | No history                           | 7-12   | NO_HISTORY |              0
+draw-12609030341 |   3 | 13-18 -> 1-6   |       0 | No history                           | Zero   | NO_HISTORY |              0
+draw-12609030341 |   4 | 1-6 -> Zero    |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030341 |   5 | Zero -> 13-18  |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030341 |   6 | 13-18 -> 1-6   |       0 | No history                           | 7-12   | NO_HISTORY |              0
+draw-12609030341 |   7 | 1-6 -> 7-12    |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030341 |   8 | 7-12 -> 1-6    |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030341 |   9 | 1-6 -> 13-18   |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030341 |  10 | 13-18 -> 13-18 |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   3 | 13-18 -> 1-6   |       1 | 1-6 0%, 7-12 0%, 13-18 0%, Zero 100% | 7-12   | INCORRECT  |              0
+draw-12609030351 |   4 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   5 | 7-12 -> 13-18  |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   6 | 13-18 -> 13-18 |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030351 |   7 | 13-18 -> 1-6   |       0 | No history                           | 7-12   | NO_HISTORY |              0
+draw-12608180151 |   3 | Zero -> 1-6    |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   4 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   5 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   6 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   7 | 1-6 -> 1-6     |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12608180151 |   8 | 1-6 -> 1-6     |       0 | No history                           | 7-12   | NO_HISTORY |              0
+draw-12608180151 |   9 | 1-6 -> 7-12    |       0 | No history                           | 7-12   | NO_HISTORY |              0
+draw-12608180151 |  10 | 7-12 -> 7-12   |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030351 |   8 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0

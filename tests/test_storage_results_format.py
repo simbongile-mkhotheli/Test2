@@ -141,9 +141,12 @@ def test_tendency_log_records_tied_outcomes_and_tracks_a_pattern_streak(
     tmp_path,
     monkeypatch,
 ):
-    tendencies_file = tmp_path / "tendencies.txt"
+    color_tendencies_file = tmp_path / "color_tendencies.txt"
     monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
-    monkeypatch.setattr("storage.storage.TENDENCIES_FILE", tendencies_file)
+    monkeypatch.setattr(
+        "storage.storage.COLOR_TENDENCIES_FILE",
+        color_tendencies_file,
+    )
     storage = Storage()
     outcomes = (("Black", 0), ("Gray", 1), ("Red", 1), ("Zero", 0))
 
@@ -188,12 +191,51 @@ def test_tendency_log_records_tied_outcomes_and_tracks_a_pattern_streak(
         "INCORRECT",
     )
 
-    rows = tendencies_file.read_text(encoding="utf-8")
-    assert "Actual | Verdict | Correct streak" in rows
+    rows = color_tendencies_file.read_text(encoding="utf-8")
+    assert "Previous two | Matches | Distribution" in rows
     assert "Red | CORRECT | 1" in rows
     assert "Gray | CORRECT | 2" in rows
     assert "Black | INCORRECT | 0" in rows
-    assert rows.count("draw-12608180191 | 3 | Color") == 1
+    assert rows.count("draw-12608180191 | 3 | Red -> Black") == 1
+    table_lines = rows.splitlines()
+    assert "+" in table_lines[1]
+    assert [field.strip() for field in table_lines[2].split(" | ")] == [
+        "draw-12608180171",
+        "3",
+        "Red -> Black",
+        "2",
+        "Black 0%, Gray 50%, Red 50%, Zero 0%",
+        "Red",
+        "CORRECT",
+        "1",
+    ]
+
+
+def test_legacy_combined_tendency_log_is_split_without_losing_rows(
+    tmp_path,
+    monkeypatch,
+):
+    legacy_file = tmp_path / "tendencies.txt"
+    color_file = tmp_path / "color_tendencies.txt"
+    range_file = tmp_path / "range_tendencies.txt"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.LEGACY_TENDENCIES_FILE", legacy_file)
+    monkeypatch.setattr("storage.storage.COLOR_TENDENCIES_FILE", color_file)
+    monkeypatch.setattr("storage.storage.RANGE_TENDENCIES_FILE", range_file)
+    legacy_file.write_text(
+        "Session | Pos | Type | Previous two | Matches | Distribution | Actual | Verdict | Correct streak\n"
+        "--------+-----+------+--------------+---------+--------------+--------+---------+---------------\n"
+        "draw-12608180171 | 3 | Color | Red -> Black | 2 | Red 50%, Gray 50% | Red | CORRECT | 1\n"
+        "draw-12608180171 | 3 | Range | 1-6 -> 7-12 | 2 | 1-6 50%, 7-12 50% | 1-6 | CORRECT | 1\n",
+        encoding="utf-8",
+    )
+
+    Storage()
+
+    assert "Red -> Black" in color_file.read_text(encoding="utf-8")
+    assert "1-6 -> 7-12" in range_file.read_text(encoding="utf-8")
+    assert not legacy_file.exists()
+    assert (tmp_path / "tendencies.legacy.txt").exists()
 
 
 def test_storage_reads_the_two_consecutive_sessions_before_the_current_one(

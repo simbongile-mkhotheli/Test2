@@ -94,12 +94,14 @@ the following position and the number of matching sessions. For example, before
 position 5 it uses positions 3 and 4 only: `Black → Gray`. Range summaries work
 the same way. These are historical counts only, not guaranteed outcomes.
 
-Every resolved tendency is written to `tendencies.txt`. Each row records the
-two-draw pattern, its historical distribution, the actual next color or range,
-and a verdict. When the highest historical percentage is tied, every tied
-outcome is treated as correct—for example, an actual Red or Gray is `CORRECT`
-for a Red 50% / Gray 50% tendency. The file also records the consecutive
-correct streak for that exact pattern and tendency type.
+Resolved tendencies are written separately to `color_tendencies.txt` and
+`range_tendencies.txt`. Each row records the two-draw pattern, its historical
+distribution, the actual next result, and a verdict. When the highest
+historical percentage is tied, every tied outcome is treated as correct—for
+example, an actual Red or Gray is `CORRECT` for a Red 50% / Gray 50% tendency.
+Each file records the consecutive correct streak for that exact pattern.
+On first startup after this update, an existing combined `tendencies.txt` is
+split into both files and retained as `tendencies.legacy.txt` for reference.
 
 ## Desktop dashboard
 
