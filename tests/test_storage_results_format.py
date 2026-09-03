@@ -193,10 +193,6 @@ def test_tendency_log_records_tied_outcomes_and_tracks_a_pattern_streak(
 
     rows = color_tendencies_file.read_text(encoding="utf-8")
     assert "Previous two | Matches | Distribution" in rows
-    assert "Red | CORRECT | 1" in rows
-    assert "Gray | CORRECT | 2" in rows
-    assert "Black | INCORRECT | 0" in rows
-    assert rows.count("draw-12608180191 | 3 | Red -> Black") == 1
     table_lines = rows.splitlines()
     assert "+" in table_lines[1]
     assert [field.strip() for field in table_lines[2].split(" | ")] == [
@@ -209,6 +205,17 @@ def test_tendency_log_records_tied_outcomes_and_tracks_a_pattern_streak(
         "CORRECT",
         "1",
     ]
+    assert [field.strip() for field in table_lines[3].split(" | ")][-3:] == [
+        "Gray",
+        "CORRECT",
+        "2",
+    ]
+    assert [field.strip() for field in table_lines[4].split(" | ")][-3:] == [
+        "Black",
+        "INCORRECT",
+        "0",
+    ]
+    assert sum("draw-12608180191" in line for line in table_lines) == 1
 
 
 def test_legacy_combined_tendency_log_is_split_without_losing_rows(

@@ -298,7 +298,7 @@ def test_session_manager_publishes_next_position_history_from_all_prior_sessions
         event
         for event in events.drain()
         if event.kind == "tendency_update"
-    ][0]
+    ][-1]
     assert "Position 3 after Red → Black" in tendency.payload["color"]
     assert "2 matching sessions" in tendency.payload["color"]
     assert "Black 50% (1)" in tendency.payload["color"]
@@ -335,7 +335,31 @@ def test_session_manager_records_resolved_tendencies_after_the_target_draw(
 
     color_log = (tmp_path / "color_tendencies.txt").read_text(encoding="utf-8")
     range_log = (tmp_path / "range_tendencies.txt").read_text(encoding="utf-8")
-    assert "draw-12608180171 | 3 | Red -> Black | 2" in color_log
-    assert "Red | CORRECT | 1" in color_log
-    assert "draw-12608180171 | 3 | 1-6 -> 1-6 | 2" in range_log
-    assert "1-6 | CORRECT | 1" in range_log
+    color_row = [
+        field.strip()
+        for field in color_log.splitlines()[2].split(" | ")
+    ]
+    range_row = [
+        field.strip()
+        for field in range_log.splitlines()[2].split(" | ")
+    ]
+    assert color_row == [
+        "draw-12608180171",
+        "3",
+        "Red -> Black",
+        "2",
+        "Black 0%, Gray 50%, Red 50%, Zero 0%",
+        "Red",
+        "CORRECT",
+        "1",
+    ]
+    assert range_row == [
+        "draw-12608180171",
+        "3",
+        "1-6 -> 1-6",
+        "2",
+        "1-6 100%, 7-12 0%, 13-18 0%, Zero 0%",
+        "1-6",
+        "CORRECT",
+        "1",
+    ]

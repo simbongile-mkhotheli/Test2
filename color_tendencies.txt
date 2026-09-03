@@ -30,3 +30,6 @@ draw-12608180151 |   8 | Gray -> Red    |       0 | No history   | Black  | NO_H
 draw-12608180151 |   9 | Red -> Black   |       0 | No history   | Gray   | NO_HISTORY |              0
 draw-12608180151 |  10 | Black -> Gray  |       0 | No history   | Red    | NO_HISTORY |              0
 draw-12609030351 |   8 | Gray -> Red    |       0 | No history   | Red    | NO_HISTORY |              0
+draw-12609030351 |   9 | Red -> Red     |       0 | No history   | Gray   | NO_HISTORY |              0
+draw-12609030351 |  10 | Red -> Gray    |       0 | No history   | Black  | NO_HISTORY |              0
+draw-12609030361 |   3 | Red -> Black   |       0 | No history   | Red    | NO_HISTORY |              0

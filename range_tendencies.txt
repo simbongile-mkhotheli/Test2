@@ -30,3 +30,6 @@ draw-12608180151 |   8 | 1-6 -> 1-6     |       0 | No history                  
 draw-12608180151 |   9 | 1-6 -> 7-12    |       0 | No history                           | 7-12   | NO_HISTORY |              0
 draw-12608180151 |  10 | 7-12 -> 7-12   |       0 | No history                           | 1-6    | NO_HISTORY |              0
 draw-12609030351 |   8 | 1-6 -> 7-12    |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030351 |   9 | 7-12 -> 13-18  |       0 | No history                           | 1-6    | NO_HISTORY |              0
+draw-12609030351 |  10 | 13-18 -> 1-6   |       0 | No history                           | 13-18  | NO_HISTORY |              0
+draw-12609030361 |   3 | 7-12 -> 7-12   |       0 | No history                           | 13-18  | NO_HISTORY |              0

@@ -148,3 +148,5 @@ Test:
 pip install -r requirements-dev.txt
 python -m pytest -q
 ```
+
+`requirements-dev.txt` includes the runtime dependencies plus the test runner.
