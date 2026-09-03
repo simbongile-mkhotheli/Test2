@@ -21,6 +21,7 @@ def test_dashboard_clears_position_alerts_but_keeps_live_absence_alerts():
 
     dashboard._record_alert("RANGE", "RANGE ALERT | 1-6 is absent.")
     dashboard._record_alert("POSITION_COLOR", "UPCOMING POSITION ALERT | Position 2.")
+    dashboard._record_alert("POSITION_RANGE", "UPCOMING RANGE ALERT | Position 2.")
     dashboard._record_alert("COLOR", "COLOR ALERT | Red is absent.")
     dashboard._clear_position_alerts()
 

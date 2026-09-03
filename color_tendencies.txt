@@ -115,3 +115,7 @@ draw-12609030451 |  10 | Gray -> Red    |       0 | No history                  
 draw-12609030461 |   3 | Gray -> Black  |       2 | Black 0%, Gray 100%, Red 0%, Zero 0% | Black  | INCORRECT  |              0
 draw-12609030461 |   4 | Black -> Black |       2 | Black 50%, Gray 0%, Red 50%, Zero 0% | Red    | CORRECT    |              1
 draw-12609030461 |   5 | Black -> Red   |       2 | Black 0%, Gray 50%, Red 0%, Zero 50% | Gray   | CORRECT    |              1
+draw-12609030461 |   6 | Red -> Gray    |       3 | Black 0%, Gray 0%, Red 67%, Zero 33% | Black  | INCORRECT  |              0
+draw-12609030461 |   7 | Gray -> Black  |       0 | No history                           | Black  | NO_HISTORY |              0
+draw-12609030461 |   8 | Black -> Black |       1 | Black 0%, Gray 0%, Red 100%, Zero 0% | Zero   | INCORRECT  |              0
+draw-12609030461 |   9 | Black -> Zero  |       0 | No history                           | Red    | NO_HISTORY |              0

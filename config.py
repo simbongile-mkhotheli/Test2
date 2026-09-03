@@ -52,6 +52,9 @@ COLOR_ABSENCE_ALERT_AT = 25
 # completed sessions. Zero remains intentionally uncolored.
 POSITION_ALERT_COLORS = ("Black", "Gray", "Red")
 
+# Apply the same two-session position-consistency rule to non-zero ranges.
+POSITION_ALERT_RANGES = ("1-6", "7-12", "13-18")
+
 
 # -----------------------------------------------------
 # Selectors

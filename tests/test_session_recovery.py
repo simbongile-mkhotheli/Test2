@@ -202,7 +202,11 @@ def test_session_manager_alerts_before_a_position_red_in_two_prior_sessions(
     manager.start("12608180171")
     add_snapshot_result(manager, "12608180171", 1)
 
-    alerts = [event for event in events.drain() if event.kind == "alert"]
+    alerts = [
+        event
+        for event in events.drain()
+        if event.kind == "alert" and event.payload["alert_type"] == "POSITION_COLOR"
+    ]
 
     assert len(alerts) == 1
     assert alerts[0].payload["alert_type"] == "POSITION_COLOR"
@@ -234,7 +238,11 @@ def test_position_alert_continues_when_the_current_session_keeps_the_pattern(
     manager.start("12608180181")
     add_snapshot_result(manager, "12608180181", 1)
 
-    alerts = [event for event in events.drain() if event.kind == "alert"]
+    alerts = [
+        event
+        for event in events.drain()
+        if event.kind == "alert" and event.payload["alert_type"] == "POSITION_COLOR"
+    ]
     assert len(alerts) == 1
     assert "Position 2 was Red" in alerts[0].payload["message"]
     assert "draw-12608180161" in alerts[0].payload["message"]
@@ -271,7 +279,12 @@ def test_session_manager_alerts_for_black_and_gray_position_consistency(
         manager = SessionManager(events)
         manager.start(str(current_start))
         add_snapshot_result(manager, str(current_start), 1)
-        alerts = [event for event in events.drain() if event.kind == "alert"]
+        alerts = [
+            event
+            for event in events.drain()
+            if event.kind == "alert"
+            and event.payload["alert_type"] == "POSITION_COLOR"
+        ]
 
         assert len(alerts) == 1
         assert f"Position 2 was {color_name}" in alerts[0].payload["message"]
@@ -300,7 +313,49 @@ def test_position_alert_resets_when_the_latest_session_breaks_the_pattern(
     manager.start("12608180181")
     add_snapshot_result(manager, "12608180181", 1)
 
-    assert not [event for event in events.drain() if event.kind == "alert"]
+    assert not [
+        event
+        for event in events.drain()
+        if event.kind == "alert" and event.payload["alert_type"] == "POSITION_COLOR"
+    ]
+
+
+def test_session_manager_alerts_for_range_position_consistency(
+    tmp_path,
+    monkeypatch,
+):
+    configure_session_storage(tmp_path, monkeypatch)
+    for start_draw_id, position_two_result in (
+        (12608180151, 1),
+        (12608180161, 2),
+    ):
+        session_name = f"draw-{start_draw_id}"
+        Storage().save_session(
+            session_name,
+            SessionPresenter().report(
+                session_name,
+                [
+                    (
+                        str(start_draw_id + offset),
+                        position_two_result if offset == 1 else 0,
+                    )
+                    for offset in range(SESSION_DRAW_COUNT)
+                ],
+            ),
+        )
+
+    events = EventBus()
+    manager = SessionManager(events)
+    manager.start("12608180171")
+    add_snapshot_result(manager, "12608180171", 0)
+
+    alerts = [
+        event
+        for event in events.drain()
+        if event.kind == "alert" and event.payload["alert_type"] == "POSITION_RANGE"
+    ]
+    assert len(alerts) == 1
+    assert "Position 2 was 1-6" in alerts[0].payload["message"]
 
 
 def test_session_manager_publishes_next_position_history_from_all_prior_sessions(

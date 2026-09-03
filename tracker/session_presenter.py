@@ -88,6 +88,25 @@ class SessionPresenter:
             ),
         )
 
+    def upcoming_position_range_alert(
+        self,
+        position: int,
+        result_range: str,
+        older_session_name: str,
+        newer_session_name: str,
+    ) -> None:
+        """Notify before a position whose range repeats across two sessions."""
+        self._publish(
+            "alert",
+            alert_type="POSITION_RANGE",
+            label=f"Position {position}",
+            message=(
+                f"UPCOMING RANGE ALERT | Position {position} was "
+                f"{result_range} in the previous two consecutive sessions "
+                f"{older_session_name} and {newer_session_name}."
+            ),
+        )
+
     def historical_tendencies(
         self,
         color_tendency: HistoricalTendency | None,

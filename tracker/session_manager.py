@@ -5,10 +5,11 @@ from pathlib import Path
 
 from config import (
     POSITION_ALERT_COLORS,
+    POSITION_ALERT_RANGES,
     SESSION_DRAW_COUNT,
     TENDENCY_LOOKBACK_DRAWS,
 )
-from models.number_domain import number_color
+from models.number_domain import number_band, number_color
 from storage.storage import CompletedSession, Storage
 from tracker.session_presenter import SessionPresenter
 from tracker.session_state import SessionState
@@ -102,6 +103,7 @@ class SessionManager:
         self._synchronize_tendency_evaluations()
         self._publish_historical_tendencies()
         self._alert_upcoming_repeated_position_color(len(self.results) + 1)
+        self._alert_upcoming_repeated_position_range(len(self.results) + 1)
         if self.is_complete():
             self.finish()
 
@@ -168,6 +170,7 @@ class SessionManager:
             SESSION_DRAW_COUNT,
         )
         self._alert_upcoming_repeated_position_color(position=1)
+        self._alert_upcoming_repeated_position_range(position=1)
 
     def add_snapshot(self, snapshot) -> SnapshotIngest:
         """Store one verified snapshot under its own draw ID."""
@@ -198,6 +201,7 @@ class SessionManager:
             self.presenter.result_recorded(self.results)
             self._publish_historical_tendencies()
             self._alert_upcoming_repeated_position_color(len(self.results) + 1)
+            self._alert_upcoming_repeated_position_range(len(self.results) + 1)
 
         unavailable_draw_ids = self.state.incomplete_missing_draw_ids(snapshot.draw_id)
         return SnapshotIngest(
@@ -283,6 +287,25 @@ class SessionManager:
             self.presenter.upcoming_position_color_alert(
                 position,
                 older_color,
+                older_session.name,
+                newer_session.name,
+            )
+
+    def _alert_upcoming_repeated_position_range(self, position: int) -> None:
+        """Alert before a position whose range repeats in both prior sessions."""
+        previous = self._previous_completed_sessions
+        if previous is None or not 1 <= position <= SESSION_DRAW_COUNT:
+            return
+
+        older_session, newer_session = previous
+        _, older_result = older_session.results[position - 1]
+        _, newer_result = newer_session.results[position - 1]
+        older_range = number_band(older_result)
+        newer_range = number_band(newer_result)
+        if older_range == newer_range and older_range in POSITION_ALERT_RANGES:
+            self.presenter.upcoming_position_range_alert(
+                position,
+                older_range,
                 older_session.name,
                 newer_session.name,
             )

@@ -101,6 +101,27 @@ def test_presenter_publishes_an_upcoming_position_color_alert():
     )
 
 
+def test_presenter_publishes_an_upcoming_position_range_alert():
+    events = EventBus()
+    presenter = SessionPresenter(events)
+    presenter.session_started("draw-12608180171", "12608180171", "12608180180", 10)
+    presenter.upcoming_position_range_alert(
+        2,
+        "1-6",
+        "draw-12608180151",
+        "draw-12608180161",
+    )
+
+    alerts = [event for event in events.drain() if event.kind == "alert"]
+
+    assert len(alerts) == 1
+    assert alerts[0].payload["alert_type"] == "POSITION_RANGE"
+    assert alerts[0].payload["message"] == (
+        "UPCOMING RANGE ALERT | Position 2 was 1-6 in the previous two "
+        "consecutive sessions draw-12608180151 and draw-12608180161."
+    )
+
+
 def test_presenter_formats_historical_tendencies_with_the_sample_size():
     events = EventBus()
     presenter = SessionPresenter(events)

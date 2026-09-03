@@ -386,7 +386,7 @@ class Dashboard:
         self._alert_entries = [
             entry
             for entry in self._alert_entries
-            if entry[0] != "POSITION_COLOR"
+            if entry[0] not in {"POSITION_COLOR", "POSITION_RANGE"}
         ]
         self._render_alerts()
 
