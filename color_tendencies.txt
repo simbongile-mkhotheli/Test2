@@ -73,3 +73,4 @@ draw-12609040261 |   8 | Black -> Red   |       1 | Black 0%, Gray 0%, Red 100%,
 draw-12609040261 |   9 | Red -> Gray    |       0 | No history                           | Red    | NO_HISTORY |              0
 draw-12609040261 |  10 | Gray -> Red    |       1 | Black 0%, Gray 0%, Red 0%, Zero 100% | Gray   | INCORRECT  |              0
 draw-12609040271 |   3 | Red -> Red     |       0 | No history                           | Gray   | NO_HISTORY |              0
+draw-12609040271 |   4 | Red -> Gray    |       1 | Black 100%, Gray 0%, Red 0%, Zero 0% | Gray   | INCORRECT  |              0

@@ -1,4 +1,5 @@
 Session          | Position | Repeated value | Current result | Verdict  
 -----------------+----------+----------------+----------------+----------
 draw-12609040271 |        2 | 13-18          | 1-6            | INCORRECT
-draw-12609040271 |        4 | 13-18          | -              | PENDING  
+draw-12609040271 |        4 | 13-18          | 13-18          | CORRECT  
+draw-12609040271 |        5 | 13-18          | -              | PENDING  

@@ -1,4 +1,4 @@
 Session          | Position | Repeated value | Current result | Verdict  
 -----------------+----------+----------------+----------------+----------
 draw-12609040271 |        3 | Red            | Gray           | INCORRECT
-draw-12609040271 |        4 | Gray           | -              | PENDING  
+draw-12609040271 |        4 | Gray           | Gray           | CORRECT  
