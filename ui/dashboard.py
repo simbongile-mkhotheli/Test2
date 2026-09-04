@@ -277,6 +277,8 @@ class Dashboard:
             )
         elif event.kind == "session_update":
             self._update_session(payload)
+        elif event.kind == "live_counts":
+            self._update_live_counts(payload)
         elif event.kind == "tendency_update":
             self._color_tendency_var.set(str(payload["color"]))
             self._range_tendency_var.set(str(payload["range"]))
@@ -337,6 +339,8 @@ class Dashboard:
                 f"{number_color(result) or 'Uncolored'}"
             )
 
+    def _update_live_counts(self, payload: dict[str, object]) -> None:
+        """Display cumulative totals from the root live-results log."""
         range_counts = payload["range_counts"]
         for label, variable in self._range_vars.items():
             variable.set(str(range_counts[label]))

@@ -84,9 +84,8 @@ RESULTS_FILE = BASE_DIR / "results.txt"
 COLOR_TENDENCIES_FILE = BASE_DIR / "color_tendencies.txt"
 RANGE_TENDENCIES_FILE = BASE_DIR / "range_tendencies.txt"
 
-# Upcoming same-position consistency alerts, kept separately by outcome type.
-UPCOMING_COLOR_ALERTS_FILE = BASE_DIR / "upcoming_color_alerts.txt"
-UPCOMING_RANGE_ALERTS_FILE = BASE_DIR / "upcoming_range_alerts.txt"
+# One combined upcoming-alert table records both color and range outcomes.
+UPCOMING_ALERTS_FILE = BASE_DIR / "upcoming_alerts.txt"
 
 # One-time migration source from the earlier combined tendency log format.
 LEGACY_TENDENCIES_FILE = BASE_DIR / "tendencies.txt"

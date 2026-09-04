@@ -16,6 +16,7 @@ from threading import Event
 from traceback import format_exc
 
 from exceptions import RecoverableError, TrackerStopped
+from models.number_domain import color_counts, range_counts
 from storage.storage import Storage
 from tracker.alert_monitor import AlertMonitor
 from tracker.frame_finder import FrameFinder
@@ -84,7 +85,20 @@ class Tracker:
         """Record every verified draw independently of session boundaries."""
         if self.live_results.append_live_result(snapshot.draw_id, snapshot.latest):
             self.alerts.record_result(snapshot.latest)
+            self._publish_live_counts()
             self._log_result(snapshot)
+
+    def _publish_live_counts(self) -> None:
+        """Refresh dashboard totals from the complete root results history."""
+        results = self.live_results.read_results()
+        values = (result for _, result in results)
+        # Materialize once because both grouping functions consume an iterable.
+        observed_values = tuple(values)
+        self._publish(
+            "live_counts",
+            range_counts=range_counts(observed_values),
+            color_counts=color_counts(observed_values),
+        )
 
     # --------------------------------------------------
 
@@ -106,6 +120,7 @@ class Tracker:
         try:
             self.live_results.prepare_live_results_log()
             self.alerts.restore(self.live_results.read_results())
+            self._publish_live_counts()
             self.connect()
 
             while not self.stop_event.is_set():
@@ -122,11 +137,14 @@ class Tracker:
                             self.last_round,
                             self.last_history,
                             self.stop_event.is_set,
-                            self._record_live_result,
                         )
 
                         self._remember_snapshot(snapshot)
                         self.session.start(snapshot.draw_id)
+                        # Waiting draws are deliberately excluded from the
+                        # root log.  The first durable root result is the
+                        # position-1 draw that begins a tracked session.
+                        self._record_live_result(snapshot)
                         self.session.add_snapshot(snapshot)
 
                     except RecoverableError as ex:

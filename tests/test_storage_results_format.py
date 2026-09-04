@@ -245,15 +245,12 @@ def test_legacy_combined_tendency_log_is_split_without_losing_rows(
     assert (tmp_path / "tendencies.legacy.txt").exists()
 
 
-def test_upcoming_position_alerts_use_separate_idempotent_tables(
+def test_upcoming_position_alerts_share_one_idempotent_session_table(
     tmp_path,
     monkeypatch,
 ):
-    color_file = tmp_path / "upcoming_color_alerts.txt"
-    range_file = tmp_path / "upcoming_range_alerts.txt"
     monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
-    monkeypatch.setattr("storage.storage.UPCOMING_COLOR_ALERTS_FILE", color_file)
-    monkeypatch.setattr("storage.storage.UPCOMING_RANGE_ALERTS_FILE", range_file)
+    monkeypatch.setattr("storage.storage.UPCOMING_ALERTS_FILE", tmp_path / "upcoming_alerts.txt")
     storage = Storage()
 
     assert storage.append_upcoming_position_alert(
@@ -287,13 +284,18 @@ def test_upcoming_position_alerts_use_separate_idempotent_tables(
         "1-6",
     )
 
-    assert "Repeated value" in color_file.read_text(encoding="utf-8")
-    assert "Current result" in color_file.read_text(encoding="utf-8")
-    assert "CORRECT" in color_file.read_text(encoding="utf-8")
-    assert "Red" in color_file.read_text(encoding="utf-8")
-    assert "PENDING" in range_file.read_text(encoding="utf-8")
-    assert "1-6" in range_file.read_text(encoding="utf-8")
-    assert color_file.read_text(encoding="utf-8").count("draw-12608180171") == 1
+    alert_file = tmp_path / "upcoming_alerts.txt"
+    text = alert_file.read_text(encoding="utf-8")
+    assert "Session" in text
+    assert "Type" in text
+    assert "Repeated value" in text
+    assert "Current result" in text
+    assert "CORRECT" in text
+    assert "Red" in text
+    assert "PENDING" in text
+    assert "1-6" in text
+    assert text.count("Color") == 1
+    assert text.count("Range") == 1
 
 
 def test_storage_reads_the_two_consecutive_sessions_before_the_current_one(

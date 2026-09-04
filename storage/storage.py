@@ -16,8 +16,7 @@ from config import (
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
     RANGE_TENDENCIES_FILE,
-    UPCOMING_COLOR_ALERTS_FILE,
-    UPCOMING_RANGE_ALERTS_FILE,
+    UPCOMING_ALERTS_FILE,
 )
 from models.number_domain import number_band, number_color, validate_number
 
@@ -42,6 +41,7 @@ _TENDENCY_LOG_COLUMNS = (
 )
 _UPCOMING_ALERT_LOG_COLUMNS = (
     "Session",
+    "Type",
     "Position",
     "Repeated value",
     "Current result",
@@ -72,6 +72,7 @@ class Storage:
         RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
         RESULTS_FILE.touch(exist_ok=True)
         self._migrate_legacy_tendency_log()
+        self._migrate_split_upcoming_alert_logs()
         self._reformat_tendency_logs()
         self._reformat_upcoming_alert_logs()
         self._resolve_completed_upcoming_alerts()
@@ -446,21 +447,21 @@ class Storage:
         ):
             raise ValueError("Upcoming alert fields must be non-empty strings")
 
-        alert_file = self._upcoming_alert_file_for(kind)
-        entries = self._read_upcoming_alert_entries(alert_file)
-        key = (session_name, str(position))
-        if any(entry[:2] == key for entry in entries):
+        entries = self._read_upcoming_alert_entries(UPCOMING_ALERTS_FILE)
+        key = (session_name, kind, str(position))
+        if any(entry[:3] == key for entry in entries):
             return False
         entries.append(
             (
                 session_name,
+                kind,
                 str(position),
                 repeated_value,
                 "-",
                 "PENDING",
             )
         )
-        self._atomic_write_text(alert_file, self._upcoming_alert_log_text(entries))
+        self._atomic_write_text(UPCOMING_ALERTS_FILE, self._upcoming_alert_log_text(entries))
         return True
 
     def resolve_upcoming_position_alert(
@@ -476,23 +477,22 @@ class Storage:
         if not isinstance(current_result, str) or not current_result:
             raise ValueError("Current alert result must be a non-empty string")
 
-        alert_file = self._upcoming_alert_file_for(kind)
-        entries = self._read_upcoming_alert_entries(alert_file)
-        key = (session_name, str(position))
+        entries = self._read_upcoming_alert_entries(UPCOMING_ALERTS_FILE)
+        key = (session_name, kind, str(position))
         updated = False
         resolved_entries: list[tuple[str, ...]] = []
         for entry in entries:
-            if entry[:2] != key:
+            if entry[:3] != key:
                 resolved_entries.append(entry)
                 continue
-            repeated_value = entry[2]
+            repeated_value = entry[3]
             verdict = "CORRECT" if current_result == repeated_value else "INCORRECT"
-            resolved_entries.append((*entry[:3], current_result, verdict))
-            updated = entry[3:] != (current_result, verdict)
+            resolved_entries.append((*entry[:4], current_result, verdict))
+            updated = entry[4:] != (current_result, verdict)
 
         if updated:
             self._atomic_write_text(
-                alert_file,
+                UPCOMING_ALERTS_FILE,
                 self._upcoming_alert_log_text(resolved_entries),
             )
         return updated
@@ -555,6 +555,75 @@ class Storage:
         if not archive_path.exists():
             LEGACY_TENDENCIES_FILE.replace(archive_path)
 
+    def _migrate_split_upcoming_alert_logs(self) -> None:
+        """Consolidate prior split or per-session logs into one combined table."""
+        legacy_logs = (
+            (RESULTS_FILE.parent / "upcoming_color_alerts.txt", "Color"),
+            (RESULTS_FILE.parent / "upcoming_range_alerts.txt", "Range"),
+            (RESULTS_FILE.parent / "upcoming_color_alerts.legacy.txt", "Color"),
+            (RESULTS_FILE.parent / "upcoming_range_alerts.legacy.txt", "Range"),
+        )
+        entries = self._read_upcoming_alert_entries(UPCOMING_ALERTS_FILE)
+        known_keys = {entry[:3] for entry in entries}
+        source_files: list[Path] = []
+        for legacy_file, kind in legacy_logs:
+            if not legacy_file.exists():
+                continue
+            source_files.append(legacy_file)
+            for entry in self._read_legacy_upcoming_alert_entries(legacy_file, kind):
+                session_name, position, repeated_value, actual_value, verdict = entry
+                key = (session_name, kind, position)
+                if key in known_keys:
+                    continue
+                entries.append((session_name, kind, position, repeated_value, actual_value, verdict))
+                known_keys.add(key)
+
+        if SESSIONS_DIR.exists():
+            for session_file in SESSIONS_DIR.glob("draw-*-upcoming-alerts.txt"):
+                match = re.fullmatch(r"(draw-\d+)-upcoming-alerts\.txt", session_file.name)
+                if match is None:
+                    continue
+                source_files.append(session_file)
+                for kind, position, repeated_value, actual_value, verdict in self._read_per_session_upcoming_alert_entries(session_file):
+                    entry = (match.group(1), kind, position, repeated_value, actual_value, verdict)
+                    if entry[:3] not in known_keys:
+                        entries.append(entry)
+                        known_keys.add(entry[:3])
+
+        if source_files:
+            self._atomic_write_text(UPCOMING_ALERTS_FILE, self._upcoming_alert_log_text(entries))
+            for source_file in source_files:
+                source_file.unlink()
+
+    @staticmethod
+    def _read_legacy_upcoming_alert_entries(
+        path: Path,
+        kind: str,
+    ) -> list[tuple[str, str, str, str, str]]:
+        """Read valid rows from an old color-only or range-only root table."""
+        entries: list[tuple[str, str, str, str, str]] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            parts = tuple(part.strip() for part in line.split(" | "))
+            if (
+                len(parts) == 5
+                and re.fullmatch(r"draw-\d+", parts[0])
+                and parts[1].isdigit()
+            ):
+                entries.append(parts)
+        return entries
+
+    @staticmethod
+    def _read_per_session_upcoming_alert_entries(
+        path: Path,
+    ) -> list[tuple[str, str, str, str, str]]:
+        """Read the short-lived combined table that lived beside a report."""
+        entries: list[tuple[str, str, str, str, str]] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            parts = tuple(part.strip() for part in line.split(" | "))
+            if len(parts) == 5 and parts[0] in {"Color", "Range"} and parts[1].isdigit():
+                entries.append(parts)
+        return entries
+
     @staticmethod
     def _tendency_file_for(kind: str) -> Path:
         if kind == "Color":
@@ -562,14 +631,6 @@ class Storage:
         if kind == "Range":
             return RANGE_TENDENCIES_FILE
         raise ValueError(f"Invalid tendency type: {kind!r}")
-
-    @staticmethod
-    def _upcoming_alert_file_for(kind: str) -> Path:
-        if kind == "Color":
-            return UPCOMING_COLOR_ALERTS_FILE
-        if kind == "Range":
-            return UPCOMING_RANGE_ALERTS_FILE
-        raise ValueError(f"Invalid upcoming alert type: {kind!r}")
 
     @staticmethod
     def _read_tendency_entries(lines: list[str]) -> list[tuple[str, ...]]:
@@ -593,46 +654,32 @@ class Storage:
             self._atomic_write_text(tendency_file, self._tendency_log_text(entries))
 
     def _reformat_upcoming_alert_logs(self) -> None:
-        """Keep upcoming-position alert logs as aligned plain-text tables."""
-        for alert_file in (UPCOMING_COLOR_ALERTS_FILE, UPCOMING_RANGE_ALERTS_FILE):
-            if not alert_file.exists():
-                continue
-            self._atomic_write_text(
-                alert_file,
-                self._upcoming_alert_log_text(
-                    self._read_upcoming_alert_entries(alert_file)
-                ),
-            )
+        """Keep the combined upcoming-position table aligned and readable."""
+        if not UPCOMING_ALERTS_FILE.exists():
+            return
+        self._atomic_write_text(
+            UPCOMING_ALERTS_FILE,
+            self._upcoming_alert_log_text(
+                self._read_upcoming_alert_entries(UPCOMING_ALERTS_FILE)
+            ),
+        )
 
     def _resolve_completed_upcoming_alerts(self) -> None:
         """Resolve old pending alerts when their completed session report exists."""
-        for kind, alert_file in (
-            ("Color", UPCOMING_COLOR_ALERTS_FILE),
-            ("Range", UPCOMING_RANGE_ALERTS_FILE),
-        ):
-            for entry in self._read_upcoming_alert_entries(alert_file):
-                session_name, position_text, _, _, verdict = entry
-                if verdict != "PENDING":
-                    continue
-                report_path = SESSIONS_DIR / f"{session_name}.txt"
-                if not report_path.exists():
-                    continue
-                results = self._read_completed_session_results(report_path)
-                position = int(position_text)
-                if not results or position > len(results):
-                    continue
-                _, result = results[position - 1]
-                actual_value = (
-                    number_color(result) or "Zero"
-                    if kind == "Color"
-                    else number_band(result) or "Zero"
-                )
-                self.resolve_upcoming_position_alert(
-                    kind,
-                    session_name,
-                    position,
-                    actual_value,
-                )
+        for entry in self._read_upcoming_alert_entries(UPCOMING_ALERTS_FILE):
+            session_name, kind, position_text, _, _, verdict = entry
+            report_path = SESSIONS_DIR / f"{session_name}.txt"
+            if not report_path.exists():
+                continue
+            if verdict != "PENDING":
+                continue
+            results = self._read_completed_session_results(report_path)
+            position = int(position_text)
+            if not results or position > len(results):
+                continue
+            _, result = results[position - 1]
+            actual_value = number_color(result) or "Zero" if kind == "Color" else number_band(result) or "Zero"
+            self.resolve_upcoming_position_alert(kind, session_name, position, actual_value)
 
     @staticmethod
     def _tendency_log_text(entries: list[tuple[str, ...]]) -> str:
@@ -663,17 +710,12 @@ class Storage:
         if not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
-        legacy_columns = bool(
-            lines and "Older completed session" in lines[0]
-        )
         entries: list[tuple[str, ...]] = []
         for line in lines:
             parts = tuple(part.strip() for part in line.split(" | "))
-            if len(parts) != len(_UPCOMING_ALERT_LOG_COLUMNS) or not parts[1].isdigit():
+            if len(parts) != len(_UPCOMING_ALERT_LOG_COLUMNS) or not parts[2].isdigit():
                 continue
-            if legacy_columns:
-                entries.append((*parts[:3], "-", "PENDING"))
-            else:
+            if re.fullmatch(r"draw-\d+", parts[0]) and parts[1] in {"Color", "Range"}:
                 entries.append(parts)
         return entries
 
@@ -692,7 +734,7 @@ class Storage:
         separator = "-+-".join("-" * width for width in widths)
         rows = [
             " | ".join(
-                value.rjust(widths[index]) if index == 1 else value.ljust(widths[index])
+                value.rjust(widths[index]) if index == 2 else value.ljust(widths[index])
                 for index, value in enumerate(entry)
             )
             for entry in entries

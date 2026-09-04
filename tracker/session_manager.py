@@ -43,6 +43,10 @@ class SessionManager:
             tuple[CompletedSession, CompletedSession] | None
         ) = None
         self._completed_sessions: tuple[CompletedSession, ...] = ()
+        # A boundary preview is intentionally repeated by ``start`` once the
+        # draw ending in 1 arrives.  Keep the dashboard notification singular
+        # while storage remains idempotent across restarts.
+        self._published_upcoming_alerts: set[tuple[str, str, int]] = set()
         self._restore_active_session()
 
     @property
@@ -149,9 +153,44 @@ class SessionManager:
                 SessionState.draw_position(snapshot.draw_id),
             )
 
+            # Draw ...0 is position 10.  At that point we already know the
+            # identity of the next session and can show its position-1 alert
+            # before the next result (draw ...1) is captured.
+            if SessionState.draw_position(snapshot.draw_id) == 0:
+                self.preview_next_session(snapshot.draw_id)
+
             if SessionState.is_session_start_draw(snapshot.draw_id):
                 self.presenter.session_boundary_found()
                 return snapshot
+
+    def preview_next_session(self, completed_draw_id: str) -> None:
+        """Publish position-1 consistency alerts after the preceding ``...0``.
+
+        This does not start or persist an active session.  It only records a
+        pending alert for the known next session, so its verdict can be filled
+        in once that session's first draw is captured.
+        """
+        if self.running or not completed_draw_id.isdigit():
+            return
+        if SessionState.draw_position(completed_draw_id) != 0:
+            return
+
+        next_start_draw_id = str(int(completed_draw_id) + 1)
+        if not SessionState.is_session_start_draw(next_start_draw_id):
+            return
+        previous = self.storage.two_consecutive_completed_sessions_before(
+            next_start_draw_id
+        )
+        if previous is None:
+            return
+
+        next_session_name = f"draw-{next_start_draw_id}"
+        self._alert_upcoming_repeated_position_color_for(
+            next_session_name, previous, position=1
+        )
+        self._alert_upcoming_repeated_position_range_for(
+            next_session_name, previous, position=1
+        )
 
     def start(self, start_draw_id: str) -> None:
         """Create a session and checkpoint its initial empty state."""
@@ -301,7 +340,20 @@ class SessionManager:
     def _alert_upcoming_repeated_position_color(self, position: int) -> None:
         """Alert before a position whose color repeats in both prior sessions."""
         previous = self._previous_completed_sessions
-        if previous is None or not 1 <= position <= SESSION_DRAW_COUNT:
+        if previous is None:
+            return
+        self._alert_upcoming_repeated_position_color_for(
+            self.session_name, previous, position
+        )
+
+    def _alert_upcoming_repeated_position_color_for(
+        self,
+        session_name: str,
+        previous: tuple[CompletedSession, CompletedSession],
+        position: int,
+    ) -> None:
+        """Store and publish a color alert for a specified upcoming session."""
+        if not 1 <= position <= SESSION_DRAW_COUNT:
             return
 
         older_session, newer_session = previous
@@ -312,10 +364,14 @@ class SessionManager:
         if older_color == newer_color and older_color in POSITION_ALERT_COLORS:
             self.storage.append_upcoming_position_alert(
                 "Color",
-                self.session_name,
+                session_name,
                 position,
                 older_color,
             )
+            alert_key = ("Color", session_name, position)
+            if alert_key in self._published_upcoming_alerts:
+                return
+            self._published_upcoming_alerts.add(alert_key)
             self.presenter.upcoming_position_color_alert(
                 position,
                 older_color,
@@ -326,7 +382,20 @@ class SessionManager:
     def _alert_upcoming_repeated_position_range(self, position: int) -> None:
         """Alert before a position whose range repeats in both prior sessions."""
         previous = self._previous_completed_sessions
-        if previous is None or not 1 <= position <= SESSION_DRAW_COUNT:
+        if previous is None:
+            return
+        self._alert_upcoming_repeated_position_range_for(
+            self.session_name, previous, position
+        )
+
+    def _alert_upcoming_repeated_position_range_for(
+        self,
+        session_name: str,
+        previous: tuple[CompletedSession, CompletedSession],
+        position: int,
+    ) -> None:
+        """Store and publish a range alert for a specified upcoming session."""
+        if not 1 <= position <= SESSION_DRAW_COUNT:
             return
 
         older_session, newer_session = previous
@@ -337,10 +406,14 @@ class SessionManager:
         if older_range == newer_range and older_range in POSITION_ALERT_RANGES:
             self.storage.append_upcoming_position_alert(
                 "Range",
-                self.session_name,
+                session_name,
                 position,
                 older_range,
             )
+            alert_key = ("Range", session_name, position)
+            if alert_key in self._published_upcoming_alerts:
+                return
+            self._published_upcoming_alerts.add(alert_key)
             self.presenter.upcoming_position_range_alert(
                 position,
                 older_range,

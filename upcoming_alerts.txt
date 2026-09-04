@@ -1,0 +1,37 @@
+Session          | Type  | Position | Repeated value | Current result | Verdict  
+-----------------+-------+----------+----------------+----------------+----------
+draw-12609040261 | Color |        5 | Black          | Gray           | INCORRECT
+draw-12609040261 | Color |        6 | Red            | Black          | INCORRECT
+draw-12609040201 | Color |        4 | Red            | Black          | INCORRECT
+draw-12609040201 | Color |        8 | Red            | Gray           | INCORRECT
+draw-12609040201 | Color |        9 | Gray           | Red            | INCORRECT
+draw-12609040221 | Color |        4 | Black          | Gray           | INCORRECT
+draw-12609040221 | Color |        6 | Red            | Red            | CORRECT  
+draw-12609040221 | Color |        7 | Black          | Red            | INCORRECT
+draw-12609040231 | Color |        1 | Black          | Gray           | INCORRECT
+draw-12609040231 | Color |        6 | Red            | Red            | CORRECT  
+draw-12609040231 | Color |       10 | Red            | Gray           | INCORRECT
+draw-12609040241 | Color |        4 | Gray           | Black          | INCORRECT
+draw-12609040241 | Color |        6 | Red            | Red            | CORRECT  
+draw-12609040241 | Color |        7 | Red            | Zero           | INCORRECT
+draw-12609040251 | Color |        2 | Gray           | Red            | INCORRECT
+draw-12609040251 | Color |        3 | Red            | Red            | CORRECT  
+draw-12609040251 | Color |        6 | Red            | Red            | CORRECT  
+draw-12609040251 | Color |        8 | Black          | Gray           | INCORRECT
+draw-12609040261 | Color |        3 | Red            | -              | PENDING  
+draw-12609040201 | Range |        3 | 7-12           | 7-12           | CORRECT  
+draw-12609040201 | Range |        6 | 13-18          | 13-18          | CORRECT  
+draw-12609040201 | Range |        7 | 1-6            | 7-12           | INCORRECT
+draw-12609040201 | Range |        9 | 7-12           | 13-18          | INCORRECT
+draw-12609040211 | Range |        3 | 7-12           | 7-12           | CORRECT  
+draw-12609040211 | Range |        4 | 1-6            | 13-18          | INCORRECT
+draw-12609040211 | Range |        6 | 13-18          | 7-12           | INCORRECT
+draw-12609040221 | Range |        3 | 7-12           | 13-18          | INCORRECT
+draw-12609040221 | Range |        9 | 13-18          | 1-6            | INCORRECT
+draw-12609040231 | Range |       10 | 1-6            | 7-12           | INCORRECT
+draw-12609040251 | Range |        1 | 13-18          | 13-18          | CORRECT  
+draw-12609040251 | Range |        5 | 7-12           | 13-18          | INCORRECT
+draw-12609040251 | Range |        6 | 1-6            | 13-18          | INCORRECT
+draw-12609040251 | Range |        8 | 7-12           | 13-18          | INCORRECT
+draw-12609040261 | Range |        1 | 13-18          | 7-12           | INCORRECT
+draw-12609040261 | Range |        3 | 13-18          | -              | PENDING  
