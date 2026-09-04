@@ -16,6 +16,14 @@ def configure_session_storage(tmp_path, monkeypatch):
         "storage.storage.RANGE_TENDENCIES_FILE",
         tmp_path / "range_tendencies.txt",
     )
+    monkeypatch.setattr(
+        "storage.storage.UPCOMING_COLOR_ALERTS_FILE",
+        tmp_path / "upcoming_color_alerts.txt",
+    )
+    monkeypatch.setattr(
+        "storage.storage.UPCOMING_RANGE_ALERTS_FILE",
+        tmp_path / "upcoming_range_alerts.txt",
+    )
     monkeypatch.setattr("storage.storage.SESSIONS_DIR", tmp_path / "sessions")
     monkeypatch.setattr(
         "storage.storage.ACTIVE_SESSION_FILE",
@@ -214,6 +222,11 @@ def test_session_manager_alerts_before_a_position_red_in_two_prior_sessions(
     assert "draw-12608180151" in alerts[0].payload["message"]
     assert "draw-12608180161" in alerts[0].payload["message"]
     assert manager.results == [("12608180171", 1)]
+    log = (tmp_path / "upcoming_color_alerts.txt").read_text(encoding="utf-8")
+    assert "draw-12608180171" in log
+    assert "Position" in log
+    assert "Red" in log
+    assert "PENDING" in log
 
 
 def test_position_alert_continues_when_the_current_session_keeps_the_pattern(

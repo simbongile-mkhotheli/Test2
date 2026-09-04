@@ -101,6 +101,7 @@ class SessionManager:
         self._load_completed_session_history()
         self.presenter.restore(self.results, checkpoint.name)
         self._synchronize_tendency_evaluations()
+        self._synchronize_upcoming_alert_results()
         self._publish_historical_tendencies()
         self._alert_upcoming_repeated_position_color(len(self.results) + 1)
         self._alert_upcoming_repeated_position_range(len(self.results) + 1)
@@ -198,6 +199,7 @@ class SessionManager:
             )
 
             self._record_tendency_evaluations(pending_tendencies, snapshot.latest)
+            self._resolve_upcoming_alerts_for_current_result(snapshot.latest)
             self.presenter.result_recorded(self.results)
             self._publish_historical_tendencies()
             self._alert_upcoming_repeated_position_color(len(self.results) + 1)
@@ -272,6 +274,30 @@ class SessionManager:
             _, actual_result = self.results[captured_count - 1]
             self._record_tendency_evaluations(tendencies, actual_result)
 
+    def _synchronize_upcoming_alert_results(self) -> None:
+        """Recover alert verdicts after an interruption following a draw commit."""
+        for position, (_, result) in enumerate(self.results, start=1):
+            self._resolve_upcoming_alerts_for_position(position, result)
+
+    def _resolve_upcoming_alerts_for_current_result(self, result: int) -> None:
+        """Resolve pending color and range alerts for the draw just captured."""
+        self._resolve_upcoming_alerts_for_position(len(self.results), result)
+
+    def _resolve_upcoming_alerts_for_position(self, position: int, result: int) -> None:
+        """Write observed color/range verdicts for one captured position."""
+        self.storage.resolve_upcoming_position_alert(
+            "Color",
+            self.session_name,
+            position,
+            number_color(result) or "Zero",
+        )
+        self.storage.resolve_upcoming_position_alert(
+            "Range",
+            self.session_name,
+            position,
+            number_band(result) or "Zero",
+        )
+
     def _alert_upcoming_repeated_position_color(self, position: int) -> None:
         """Alert before a position whose color repeats in both prior sessions."""
         previous = self._previous_completed_sessions
@@ -284,6 +310,12 @@ class SessionManager:
         older_color = number_color(older_result)
         newer_color = number_color(newer_result)
         if older_color == newer_color and older_color in POSITION_ALERT_COLORS:
+            self.storage.append_upcoming_position_alert(
+                "Color",
+                self.session_name,
+                position,
+                older_color,
+            )
             self.presenter.upcoming_position_color_alert(
                 position,
                 older_color,
@@ -303,6 +335,12 @@ class SessionManager:
         older_range = number_band(older_result)
         newer_range = number_band(newer_result)
         if older_range == newer_range and older_range in POSITION_ALERT_RANGES:
+            self.storage.append_upcoming_position_alert(
+                "Range",
+                self.session_name,
+                position,
+                older_range,
+            )
             self.presenter.upcoming_position_range_alert(
                 position,
                 older_range,

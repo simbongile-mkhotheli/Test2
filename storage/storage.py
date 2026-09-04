@@ -16,8 +16,10 @@ from config import (
     SESSIONS_DIR,
     SESSION_DRAW_COUNT,
     RANGE_TENDENCIES_FILE,
+    UPCOMING_COLOR_ALERTS_FILE,
+    UPCOMING_RANGE_ALERTS_FILE,
 )
-from models.number_domain import validate_number
+from models.number_domain import number_band, number_color, validate_number
 
 
 _DRAW_LINE_RE = re.compile(r"^\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(-?\d+)\s*$")
@@ -37,6 +39,13 @@ _TENDENCY_LOG_COLUMNS = (
     "Actual",
     "Verdict",
     "Correct streak",
+)
+_UPCOMING_ALERT_LOG_COLUMNS = (
+    "Session",
+    "Position",
+    "Repeated value",
+    "Current result",
+    "Verdict",
 )
 
 
@@ -64,6 +73,8 @@ class Storage:
         RESULTS_FILE.touch(exist_ok=True)
         self._migrate_legacy_tendency_log()
         self._reformat_tendency_logs()
+        self._reformat_upcoming_alert_logs()
+        self._resolve_completed_upcoming_alerts()
 
     @staticmethod
     def _atomic_write_text(path: Path, text: str) -> None:
@@ -419,6 +430,73 @@ class Storage:
         self._atomic_write_text(tendency_file, self._tendency_log_text(parsed_entries))
         return True
 
+    def append_upcoming_position_alert(
+        self,
+        kind: str,
+        session_name: str,
+        position: int,
+        repeated_value: str,
+    ) -> bool:
+        """Atomically record one pending upcoming alert unless already logged."""
+        if position < 1 or position > SESSION_DRAW_COUNT:
+            raise ValueError(f"Invalid upcoming alert position: {position}")
+        if not all(
+            isinstance(value, str) and value
+            for value in (session_name, repeated_value)
+        ):
+            raise ValueError("Upcoming alert fields must be non-empty strings")
+
+        alert_file = self._upcoming_alert_file_for(kind)
+        entries = self._read_upcoming_alert_entries(alert_file)
+        key = (session_name, str(position))
+        if any(entry[:2] == key for entry in entries):
+            return False
+        entries.append(
+            (
+                session_name,
+                str(position),
+                repeated_value,
+                "-",
+                "PENDING",
+            )
+        )
+        self._atomic_write_text(alert_file, self._upcoming_alert_log_text(entries))
+        return True
+
+    def resolve_upcoming_position_alert(
+        self,
+        kind: str,
+        session_name: str,
+        position: int,
+        current_result: str,
+    ) -> bool:
+        """Fill the captured result and verdict for a previously pending alert."""
+        if position < 1 or position > SESSION_DRAW_COUNT:
+            raise ValueError(f"Invalid upcoming alert position: {position}")
+        if not isinstance(current_result, str) or not current_result:
+            raise ValueError("Current alert result must be a non-empty string")
+
+        alert_file = self._upcoming_alert_file_for(kind)
+        entries = self._read_upcoming_alert_entries(alert_file)
+        key = (session_name, str(position))
+        updated = False
+        resolved_entries: list[tuple[str, ...]] = []
+        for entry in entries:
+            if entry[:2] != key:
+                resolved_entries.append(entry)
+                continue
+            repeated_value = entry[2]
+            verdict = "CORRECT" if current_result == repeated_value else "INCORRECT"
+            resolved_entries.append((*entry[:3], current_result, verdict))
+            updated = entry[3:] != (current_result, verdict)
+
+        if updated:
+            self._atomic_write_text(
+                alert_file,
+                self._upcoming_alert_log_text(resolved_entries),
+            )
+        return updated
+
     def _migrate_legacy_tendency_log(self) -> None:
         """Split the old combined tendency log without discarding its rows."""
         if (
@@ -486,6 +564,14 @@ class Storage:
         raise ValueError(f"Invalid tendency type: {kind!r}")
 
     @staticmethod
+    def _upcoming_alert_file_for(kind: str) -> Path:
+        if kind == "Color":
+            return UPCOMING_COLOR_ALERTS_FILE
+        if kind == "Range":
+            return UPCOMING_RANGE_ALERTS_FILE
+        raise ValueError(f"Invalid upcoming alert type: {kind!r}")
+
+    @staticmethod
     def _read_tendency_entries(lines: list[str]) -> list[tuple[str, ...]]:
         """Read valid data rows from the tracker-owned tendency log."""
         entries: list[tuple[str, ...]] = []
@@ -506,6 +592,48 @@ class Storage:
             )
             self._atomic_write_text(tendency_file, self._tendency_log_text(entries))
 
+    def _reformat_upcoming_alert_logs(self) -> None:
+        """Keep upcoming-position alert logs as aligned plain-text tables."""
+        for alert_file in (UPCOMING_COLOR_ALERTS_FILE, UPCOMING_RANGE_ALERTS_FILE):
+            if not alert_file.exists():
+                continue
+            self._atomic_write_text(
+                alert_file,
+                self._upcoming_alert_log_text(
+                    self._read_upcoming_alert_entries(alert_file)
+                ),
+            )
+
+    def _resolve_completed_upcoming_alerts(self) -> None:
+        """Resolve old pending alerts when their completed session report exists."""
+        for kind, alert_file in (
+            ("Color", UPCOMING_COLOR_ALERTS_FILE),
+            ("Range", UPCOMING_RANGE_ALERTS_FILE),
+        ):
+            for entry in self._read_upcoming_alert_entries(alert_file):
+                session_name, position_text, _, _, verdict = entry
+                if verdict != "PENDING":
+                    continue
+                report_path = SESSIONS_DIR / f"{session_name}.txt"
+                if not report_path.exists():
+                    continue
+                results = self._read_completed_session_results(report_path)
+                position = int(position_text)
+                if not results or position > len(results):
+                    continue
+                _, result = results[position - 1]
+                actual_value = (
+                    number_color(result) or "Zero"
+                    if kind == "Color"
+                    else number_band(result) or "Zero"
+                )
+                self.resolve_upcoming_position_alert(
+                    kind,
+                    session_name,
+                    position,
+                    actual_value,
+                )
+
     @staticmethod
     def _tendency_log_text(entries: list[tuple[str, ...]]) -> str:
         """Render entries as a fixed-width table suitable for plain-text editors."""
@@ -524,6 +652,47 @@ class Storage:
             " | ".join(
                 value.rjust(widths[index]) if index in {1, 3, 7}
                 else value.ljust(widths[index])
+                for index, value in enumerate(entry)
+            )
+            for entry in entries
+        ]
+        return "\n".join((header, separator, *rows)) + "\n"
+
+    @staticmethod
+    def _read_upcoming_alert_entries(path: Path) -> list[tuple[str, ...]]:
+        if not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        legacy_columns = bool(
+            lines and "Older completed session" in lines[0]
+        )
+        entries: list[tuple[str, ...]] = []
+        for line in lines:
+            parts = tuple(part.strip() for part in line.split(" | "))
+            if len(parts) != len(_UPCOMING_ALERT_LOG_COLUMNS) or not parts[1].isdigit():
+                continue
+            if legacy_columns:
+                entries.append((*parts[:3], "-", "PENDING"))
+            else:
+                entries.append(parts)
+        return entries
+
+    @staticmethod
+    def _upcoming_alert_log_text(entries: list[tuple[str, ...]]) -> str:
+        widths = [
+            max(len(title), *(len(entry[index]) for entry in entries))
+            if entries
+            else len(title)
+            for index, title in enumerate(_UPCOMING_ALERT_LOG_COLUMNS)
+        ]
+        header = " | ".join(
+            title.ljust(widths[index])
+            for index, title in enumerate(_UPCOMING_ALERT_LOG_COLUMNS)
+        )
+        separator = "-+-".join("-" * width for width in widths)
+        rows = [
+            " | ".join(
+                value.rjust(widths[index]) if index == 1 else value.ljust(widths[index])
                 for index, value in enumerate(entry)
             )
             for entry in entries

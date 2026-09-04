@@ -86,6 +86,12 @@ The same upcoming-position rule applies to ranges `1–6`, `7–12`, and `13–1
 An `UPCOMING RANGE ALERT` is shown when the same position was in the same
 non-zero range across the two previous consecutive sessions. Zero does not
 produce a position range alert.
+
+Upcoming position notifications are recorded in `upcoming_color_alerts.txt`
+and `upcoming_range_alerts.txt`. Each formatted row records the active session,
+upcoming position, repeated color or range, the captured current result, and
+its `PENDING`, `CORRECT`, or `INCORRECT` verdict. A restart cannot duplicate an
+existing row and recovers pending verdict updates after interruption.
 This comparison uses saved session reports, so it also works after restarting
 the program. The dashboard clears position alerts when a session completes or
 becomes incomplete; live range and color absence alerts remain because they are

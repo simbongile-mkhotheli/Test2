@@ -245,6 +245,57 @@ def test_legacy_combined_tendency_log_is_split_without_losing_rows(
     assert (tmp_path / "tendencies.legacy.txt").exists()
 
 
+def test_upcoming_position_alerts_use_separate_idempotent_tables(
+    tmp_path,
+    monkeypatch,
+):
+    color_file = tmp_path / "upcoming_color_alerts.txt"
+    range_file = tmp_path / "upcoming_range_alerts.txt"
+    monkeypatch.setattr("storage.storage.RESULTS_FILE", tmp_path / "results.txt")
+    monkeypatch.setattr("storage.storage.UPCOMING_COLOR_ALERTS_FILE", color_file)
+    monkeypatch.setattr("storage.storage.UPCOMING_RANGE_ALERTS_FILE", range_file)
+    storage = Storage()
+
+    assert storage.append_upcoming_position_alert(
+        "Color",
+        "draw-12608180171",
+        3,
+        "Red",
+    )
+    assert not storage.append_upcoming_position_alert(
+        "Color",
+        "draw-12608180171",
+        3,
+        "Red",
+    )
+    assert storage.resolve_upcoming_position_alert(
+        "Color",
+        "draw-12608180171",
+        3,
+        "Red",
+    )
+    assert not storage.resolve_upcoming_position_alert(
+        "Color",
+        "draw-12608180171",
+        3,
+        "Red",
+    )
+    assert storage.append_upcoming_position_alert(
+        "Range",
+        "draw-12608180171",
+        3,
+        "1-6",
+    )
+
+    assert "Repeated value" in color_file.read_text(encoding="utf-8")
+    assert "Current result" in color_file.read_text(encoding="utf-8")
+    assert "CORRECT" in color_file.read_text(encoding="utf-8")
+    assert "Red" in color_file.read_text(encoding="utf-8")
+    assert "PENDING" in range_file.read_text(encoding="utf-8")
+    assert "1-6" in range_file.read_text(encoding="utf-8")
+    assert color_file.read_text(encoding="utf-8").count("draw-12608180171") == 1
+
+
 def test_storage_reads_the_two_consecutive_sessions_before_the_current_one(
     tmp_path,
     monkeypatch,
